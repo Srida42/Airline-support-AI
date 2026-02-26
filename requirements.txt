@@ -1,5 +1,4 @@
-gradio
-mysql-connector-python
-openai
-python-dotenv
-pillow
+flask>=3.0.0
+flask-cors>=4.0.0
+mysql-connector-python>=8.3.0
+python-dotenv>=1.0.0

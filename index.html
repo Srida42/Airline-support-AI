@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AeroDesk — Airline Support</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Variables ─────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #f4f6fa;
+      --surface:     #ffffff;
+      --border:      #e2e8f0;
+      --border-dark: #c5cfe0;
+      --navy:        #0f1f3d;
+      --blue:        #1a56d6;
+      --blue-light:  #e8f0fe;
+      --accent:      #0ea5e9;
+      --green:       #16a34a;
+      --red:         #dc2626;
+      --amber:       #d97706;
+      --text:        #1e293b;
+      --muted:       #64748b;
+      --bubble-user: #0f1f3d;
+      --bubble-bot:  #ffffff;
+      --radius:      14px;
+      --font-ui:     'Sora', sans-serif;
+      --font-mono:   'DM Mono', monospace;
+      --shadow-sm:   0 1px 4px rgba(15,31,61,.07);
+      --shadow-md:   0 4px 20px rgba(15,31,61,.10);
+      --shadow-lg:   0 12px 40px rgba(15,31,61,.13);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font-ui);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Layout ────────────────────────────────────── */
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      max-width: 820px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 24px;
+      background: var(--navy);
+      color: #fff;
+      box-shadow: 0 2px 16px rgba(0,0,0,.18);
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+    header::after {
+      content: '';
+      position: absolute;
+      right: -40px; top: -40px;
+      width: 180px; height: 180px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.04);
+      pointer-events: none;
+    }
+    .header-icon {
+      width: 42px; height: 42px;
+      background: var(--blue);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .header-text h1 {
+      font-size: 17px; font-weight: 600; letter-spacing: -.3px;
+    }
+    .header-text p {
+      font-size: 11.5px; color: rgba(255,255,255,.55); margin-top: 1px;
+      font-family: var(--font-mono); font-weight: 300;
+    }
+    .status-dot {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11.5px; color: rgba(255,255,255,.6);
+      font-family: var(--font-mono);
+    }
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+
+    /* ── Quick Actions ─────────────────────────────── */
+    .quick-bar {
+      display: flex;
+      gap: 8px;
+      padding: 10px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      flex-shrink: 0;
+    }
+    .quick-bar::-webkit-scrollbar { display: none; }
+    .quick-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--muted);
+      font-family: var(--font-ui);
+      font-size: 12px; font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all .18s ease;
+    }
+    .quick-btn:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: var(--blue-light);
+    }
+
+    /* ── Messages Area ─────────────────────────────── */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      scroll-behavior: smooth;
+    }
+    #messages::-webkit-scrollbar { width: 4px; }
+    #messages::-webkit-scrollbar-track { background: transparent; }
+    #messages::-webkit-scrollbar-thumb { background: var(--border-dark); border-radius: 4px; }
+
+    /* ── Message Rows ─────────────────────────────── */
+    .msg-row {
+      display: flex;
+      gap: 10px;
+      animation: msgIn .25s ease-out;
+    }
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .msg-row.user { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 34px; height: 34px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .avatar.bot  { background: var(--navy); }
+    .avatar.user { background: var(--blue); }
+
+    .bubble {
+      max-width: 72%;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      line-height: 1.6;
+      font-size: 14px;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+    }
+    .msg-row.bot .bubble {
+      background: var(--bubble-bot);
+      border: 1px solid var(--border);
+      border-top-left-radius: 4px;
+      color: var(--text);
+    }
+    .msg-row.user .bubble {
+      background: var(--bubble-user);
+      border-top-right-radius: 4px;
+      color: #fff;
+    }
+
+    .bubble-meta {
+      font-size: 10.5px;
+      color: var(--muted);
+      margin-top: 4px;
+      font-family: var(--font-mono);
+    }
+    .msg-row.user .bubble-meta {
+      text-align: right;
+    }
+
+    /* ── Intent Badge ─────────────────────────────── */
+    .intent-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10.5px; font-weight: 500;
+      font-family: var(--font-mono);
+      margin-bottom: 8px;
+    }
+    .intent-badge.search   { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .intent-badge.booking  { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+    .intent-badge.cancel   { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+    .intent-badge.seat     { background: #faf5ff; color: #7e22ce; border: 1px solid #e9d5ff; }
+    .intent-badge.ticket   { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+    .intent-badge.help     { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+    .intent-badge.unknown  { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+    /* ── Bubble formatted text ─────────────────────── */
+    .bubble-body strong { font-weight: 600; }
+    .bubble-body .line  { margin: 3px 0; }
+
+    /* ── Flight Card ──────────────────────────────── */
+    .flight-card {
+      background: var(--blue-light);
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+    .flight-card .route {
+      font-weight: 600; font-size: 14px;
+      color: var(--navy);
+    }
+    .flight-card .details {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    .flight-card .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px; font-weight: 500;
+      margin-top: 6px;
+    }
+    .badge-green { background: #dcfce7; color: #15803d; }
+    .badge-amber { background: #fef9c3; color: #92400e; }
+    .badge-red   { background: #fee2e2; color: #991b1b; }
+
+    /* ── Typing indicator ─────────────────────────── */
+    .typing {
+      display: flex; gap: 4px;
+      padding: 14px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      border-top-left-radius: 4px;
+      width: 62px;
+    }
+    .typing span {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: bounce .9s ease-in-out infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: .15s; }
+    .typing span:nth-child(3) { animation-delay: .30s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(.7); opacity: .5; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ── Welcome state ────────────────────────────── */
+    .welcome {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      flex: 1;
+      gap: 16px;
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .welcome-icon {
+      width: 64px; height: 64px;
+      background: var(--navy);
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px;
+      box-shadow: var(--shadow-md);
+    }
+    .welcome h2 {
+      font-size: 18px; font-weight: 600;
+      color: var(--text);
+    }
+    .welcome p { font-size: 13.5px; max-width: 340px; line-height: 1.6; }
+
+    /* ── Input Area ────────────────────────────────── */
+    .input-area {
+      padding: 14px 20px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    #user-input {
+      flex: 1;
+      padding: 11px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-family: var(--font-ui);
+      font-size: 14px;
+      color: var(--text);
+      background: var(--bg);
+      resize: none;
+      min-height: 44px;
+      max-height: 120px;
+      line-height: 1.5;
+      outline: none;
+      transition: border-color .18s;
+      overflow-y: auto;
+    }
+    #user-input:focus {
+      border-color: var(--blue);
+      background: #fff;
+    }
+    #user-input::placeholder { color: #94a3b8; }
+
+    #send-btn {
+      width: 44px; height: 44px;
+      background: var(--blue);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .18s, transform .12s;
+      flex-shrink: 0;
+    }
+    #send-btn:hover  { background: #1648c0; }
+    #send-btn:active { transform: scale(.93); }
+    #send-btn svg { fill: #fff; width: 18px; height: 18px; }
+    #send-btn:disabled { background: var(--border); cursor: not-allowed; }
+
+    .input-hint {
+      font-size: 11px; color: var(--muted);
+      margin-top: 6px;
+      font-family: var(--font-mono);
+    }
+
+    /* ── Error toast ──────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: #1e293b; color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: all .25s ease;
+      z-index: 999;
+    }
+    #toast.show {
+      opacity: 1; transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Responsive ────────────────────────────────── */
+    @media (max-width: 600px) {
+      .app { max-width: 100%; }
+      .bubble { max-width: 86%; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header>
+    <div class="header-icon">✈️</div>
+    <div class="header-text">
+      <h1>AeroDesk Support</h1>
+      <p>Intelligent Airline Assistant · Sprint 1</p>
+    </div>
+    <div class="status-dot">
+      <div class="dot"></div>
+      <span>Online</span>
+    </div>
+  </header>
+
+  <!-- Quick Actions -->
+  <div class="quick-bar">
+    <button class="quick-btn" onclick="quickAction('Search flights from New York to London')">🔍 Search Flights</button>
+    <button class="quick-btn" onclick="quickAction('Check my booking ABC123')">📋 My Booking</button>
+    <button class="quick-btn" onclick="quickAction('Cancel booking DEF456')">❌ Cancel</button>
+    <button class="quick-btn" onclick="quickAction('Change seat to 14B for ABC123')">💺 Change Seat</button>
+    <button class="quick-btn" onclick="quickAction('I have an issue with my meal for booking ABC123')">🎫 Raise Ticket</button>
+    <button class="quick-btn" onclick="quickAction('help')">❓ Help</button>
+  </div>
+
+  <!-- Messages -->
+  <div id="messages">
+    <div class="welcome" id="welcome">
+      <div class="welcome-icon">✈️</div>
+      <h2>Welcome to AeroDesk</h2>
+      <p>I can help you search flights, manage your booking, change seats, or raise a support ticket. How can I assist you today?</p>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="input-area">
+    <div class="input-row">
+      <textarea
+        id="user-input"
+        placeholder="Type your message…  e.g. 'Cancel booking ABC123'"
+        rows="1"
+        autocomplete="off"
+      ></textarea>
+      <button id="send-btn" onclick="sendMessage()" title="Send">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+    <div class="input-hint">↵ Enter to send &nbsp;·&nbsp; Shift+↵ for new line</div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+  // ── Config ────────────────────────────────────────
+  const API_BASE = 'http://localhost:5000/api';
+
+  // ── State ─────────────────────────────────────────
+  let isWaiting = false;
+
+  // ── DOM Refs ──────────────────────────────────────
+  const messagesEl = document.getElementById('messages');
+  const inputEl    = document.getElementById('user-input');
+  const sendBtn    = document.getElementById('send-btn');
+  const welcomeEl  = document.getElementById('welcome');
+  const toastEl    = document.getElementById('toast');
+
+  // ── Auto-resize textarea ─────────────────────────
+  inputEl.addEventListener('input', () => {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+  });
+
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // ── Quick Action ──────────────────────────────────
+  function quickAction(text) {
+    inputEl.value = text;
+    inputEl.dispatchEvent(new Event('input'));
+    sendMessage();
+  }
+
+  // ── Toast ─────────────────────────────────────────
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    setTimeout(() => toastEl.classList.remove('show'), 3000);
+  }
+
+  // ── Time helper ───────────────────────────────────
+  function nowTime() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ── Intent → badge style ──────────────────────────
+  function intentClass(intent) {
+    const map = {
+      search_flights: 'search',
+      get_booking:    'booking',
+      cancel_booking: 'cancel',
+      change_seat:    'seat',
+      create_ticket:  'ticket',
+      help:           'help',
+      unknown:        'unknown',
+    };
+    return map[intent] || 'help';
+  }
+
+  function intentLabel(intent) {
+    const map = {
+      search_flights: '🔍 Search',
+      get_booking:    '📋 Booking',
+      cancel_booking: '❌ Cancel',
+      change_seat:    '💺 Seat',
+      create_ticket:  '🎫 Ticket',
+      help:           '❓ Help',
+      unknown:        '❔ Unknown',
+    };
+    return map[intent] || intent;
+  }
+
+  // ── Render text with **bold** and newlines ─────────
+  function renderText(text) {
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    return escaped
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+  }
+
+  // ── Render flight cards if data present ───────────
+  function renderFlightCards(data) {
+    if (!data || !data.flights) return '';
+    return data.flights.map(f => {
+      let avail = parseInt(f.available_seats);
+      let badgeClass = 'badge-green';
+      let badgeText  = `${avail} seats`;
+      if (avail === 0)  { badgeClass = 'badge-red';   badgeText = 'Full'; }
+      else if (avail < 15) { badgeClass = 'badge-amber'; badgeText = `${avail} left`; }
+
+      return `
+        <div class="flight-card">
+          <div class="route">${f.flight_number} &nbsp;·&nbsp; ${f.origin} → ${f.destination}</div>
+          <div class="details">
+            Dep: ${f.departure_time} &nbsp;|&nbsp; $${parseFloat(f.price).toFixed(2)}
+          </div>
+          <span class="badge ${badgeClass}">${badgeText}</span>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Append message bubble ──────────────────────────
+  function appendMessage(role, text, intent, data) {
+    if (welcomeEl) welcomeEl.remove();
+
+    const row = document.createElement('div');
+    row.className = `msg-row ${role}`;
+
+    const avatarEmoji = role === 'user' ? '👤' : '✈️';
+    const avatarClass = role === 'user' ? 'user' : 'bot';
+
+    let bubbleContent = '';
+
+    if (role === 'bot' && intent) {
+      bubbleContent += `<div class="intent-badge ${intentClass(intent)}">${intentLabel(intent)}</div>`;
+    }
+
+    bubbleContent += `<div class="bubble-body">${renderText(text)}</div>`;
+
+    if (role === 'bot' && data) {
+      bubbleContent += renderFlightCards(data);
+    }
+
+    row.innerHTML = `
+      <div class="avatar ${avatarClass}">${avatarEmoji}</div>
+      <div>
+        <div class="bubble">${bubbleContent}</div>
+        <div class="bubble-meta">${nowTime()}</div>
+      </div>`;
+
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // ── Typing indicator ──────────────────────────────
+  function showTyping() {
+    const row = document.createElement('div');
+    row.className = 'msg-row bot';
+    row.id = 'typing-row';
+    row.innerHTML = `
+      <div class="avatar bot">✈️</div>
+      <div>
+        <div class="typing"><span></span><span></span><span></span></div>
+      </div>`;
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function hideTyping() {
+    const el = document.getElementById('typing-row');
+    if (el) el.remove();
+  }
+
+  // ── Main send ─────────────────────────────────────
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text || isWaiting) return;
+
+    // Clear input
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+
+    // Show user bubble
+    appendMessage('user', text);
+
+    // Lock UI
+    isWaiting = true;
+    sendBtn.disabled = true;
+    showTyping();
+
+    try {
+      const res = await fetch(`${API_BASE}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+
+      const json = await res.json();
+      hideTyping();
+      appendMessage('bot', json.response, json.intent, json.data);
+
+    } catch (err) {
+      hideTyping();
+      const msg = err.message.includes('Failed to fetch')
+        ? '⚠️ Cannot reach the server. Please ensure api.py is running on port 5000.'
+        : `❌ Error: ${err.message}`;
+      appendMessage('bot', msg, 'unknown', null);
+      showToast('Connection error');
+    } finally {
+      isWaiting = false;
+      sendBtn.disabled = false;
+      inputEl.focus();
+    }
+  }
+
+  // ── Initial focus ──────────────────────────────────
+  inputEl.focus();
+</script>
+</body>
+</html>
