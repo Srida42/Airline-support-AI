@@ -3,741 +3,1353 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AeroDesk — Airline Support</title>
+  <title>AeroDesk — AI Airline Support</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet" />
   <style>
-    /* ── Reset ─────────────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-    /* ── Palette
-         #003049  deep navy     → header, bot avatar, dark text
-         #D62828  vivid red     → primary accent, send btn, user bubble
-         #F77F00  orange        → hover states, secondary highlights
-         #FCBF49  golden yellow → shimmer line, flight card accents, badges
-         #EAE2B7  warm cream    → page bg, bot bubble bg
-    ────────────────────────────────────────────────── */
     :root {
-      --navy:         #003049;
-      --navy-deep:    #001e30;
-      --red:          #D62828;
-      --red-dark:     #b01f1f;
-      --orange:       #F77F00;
-      --gold:         #FCBF49;
-      --gold-dim:     #e6aa30;
-      --cream:        #EAE2B7;
-      --cream-dim:    #ddd5a8;
-      --cream-light:  #f5f1e0;
-
-      --bg:           #efddcc;
-      --surface:      #ffffff;
-      --border:       #ddd5b0;
-      --border-light: #ece7cc;
-      --text:         #1a1208;        /* near-black warm tone */
-      --muted:        #6b5e3e;        /* warm brown-grey */
-      --bubble-user:  var(--red);
-      --bubble-bot:   #ffffff;
-
-      --radius:       14px;
-      --font-ui:      'Sora', sans-serif;
-      --font-mono:    'DM Mono', monospace;
-      --shadow-sm:    0 1px 4px rgba(0,48,73,.08);
-      --shadow-md:    0 4px 20px rgba(0,48,73,.13);
-      --shadow-lg:    0 12px 40px rgba(0,48,73,.16);
+      --navy-deep: #001e30;
+      --navy: #003049;
+      --red: #D62828;
+      --red-dark: #b01f1f;
+      --orange: #F77F00;
+      --gold: #FCBF49;
+      --cream: #EAE2B7;
+      --cream-dark: #ddd5a8;
+      --cream-light: #f5f1e0;
+      --white: #ffffff;
+      --gray-600: #6c757d;
+      --gray-700: #495057;
+      --gray-800: #343a40;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
     }
 
-    html, body {
-      height: 100%;
-      font-family: var(--font-ui);
-      background: var(--bg);
-      color: var(--text);
-      -webkit-font-smoothing: antialiased;
-    }
-
-    /* ── App shell ─────────────────────────────────── */
-    .app {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      max-width: 840px;
-      margin: 0 auto;
-      /* Subtle left/right shadow to lift it off the bg */
-      box-shadow: 0 0 60px rgba(0,48,73,.10);
-    }
-
-    /* ════════════════════════════════════════════════
-       HEADER
-    ════════════════════════════════════════════════ */
-    header {
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--cream);
+      min-height: 100vh;
       display: flex;
       align-items: center;
-      gap: 14px;
-      padding: 15px 24px;
-      background: linear-gradient(135deg, var(--navy-deep) 0%, var(--navy) 100%);
-      color: #fff;
-      flex-shrink: 0;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 1400px;
+      height: 90vh;
+      background: var(--white);
+      border-radius: 32px;
+      box-shadow: var(--shadow-xl);
+      display: flex;
+      overflow: hidden;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .sidebar {
+      width: 280px;
+      background: linear-gradient(180deg, var(--navy-deep) 0%, var(--navy) 100%);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 20px;
       position: relative;
       overflow: hidden;
     }
-    /* Decorative circle top-right */
-    header::before {
+
+    .sidebar::after {
       content: '';
       position: absolute;
-      right: -50px; top: -60px;
-      width: 200px; height: 200px;
-      border-radius: 50%;
-      background: rgba(252,191,73,.06);
-      pointer-events: none;
-    }
-    /* Gold shimmer line at bottom */
-    header::after {
-      content: '';
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      height: 2.5px;
-      background: linear-gradient(90deg, transparent 0%, var(--gold) 40%, var(--orange) 60%, transparent 100%);
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), var(--orange), transparent);
     }
 
-    .header-logo {
-      width: 44px; height: 44px;
-      background: rgba(252,191,73,.15);
-      border: 1.5px solid rgba(252,191,73,.3);
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: rgba(252, 191, 73, 0.15);
+      border: 1.5px solid rgba(252, 191, 73, 0.3);
       border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-    }
-    .header-logo svg { width: 26px; height: 26px; fill: var(--gold); }
-
-    .header-text h1 {
-      font-size: 17px; font-weight: 700;
-      letter-spacing: -.3px; color: #fff;
-    }
-    .header-text p {
-      font-size: 11px;
-      color: rgba(255,255,255,.45);
-      margin-top: 1px;
-      font-family: var(--font-mono);
-      letter-spacing: .02em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .status-pill {
-      margin-left: auto;
-      display: flex; align-items: center; gap: 6px;
-      background: rgba(255,255,255,.08);
-      border: 1px solid rgba(255,255,255,.14);
-      border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 11px;
-      color: rgba(255,255,255,.65);
-      font-family: var(--font-mono);
+    .logo-icon svg {
+      width: 22px;
+      height: 22px;
+      fill: var(--gold);
     }
+
+    .logo-text h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: white;
+    }
+
+    .logo-text p {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+
     .status-dot {
-      width: 6px; height: 6px;
+      width: 8px;
+      height: 8px;
+      background: #4caf50;
       border-radius: 50%;
-      background: #4ade80;
-      box-shadow: 0 0 5px rgba(74,222,128,.7);
-      animation: blink 2.2s ease-in-out infinite;
-    }
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: .35; }
+      animation: pulse 2s infinite;
     }
 
-    /* ════════════════════════════════════════════════
-       QUICK BAR
-    ════════════════════════════════════════════════ */
-    .quick-bar {
-      display: flex; gap: 7px;
-      padding: 10px 20px;
-      background: var(--surface);
-      border-bottom: 1.5px solid var(--border-light);
-      overflow-x: auto; flex-shrink: 0;
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
     }
-    .quick-bar::-webkit-scrollbar { display: none; }
+
+    .status-text {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .quick-actions {
+      flex: 1;
+    }
+
+    .quick-actions h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      opacity: 0.6;
+      margin-bottom: 16px;
+    }
 
     .quick-btn {
-      display: flex; align-items: center; gap: 7px;
-      padding: 6px 13px;
-      border: 1.5px solid var(--border);
-      border-radius: 999px;
-      background: var(--cream-light);
-      color: var(--muted);
-      font-family: var(--font-ui);
-      font-size: 12px; font-weight: 500;
-      cursor: pointer; white-space: nowrap;
-      transition: all .17s ease;
+      width: 100%;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: left;
+      cursor: pointer;
+      margin-bottom: 8px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
+
     .quick-btn svg {
-      width: 14px; height: 14px;
+      width: 16px;
+      height: 16px;
       stroke: currentColor;
-      fill: none;
       stroke-width: 2;
+      fill: none;
       stroke-linecap: round;
       stroke-linejoin: round;
       flex-shrink: 0;
     }
-    /* Help btn uses fill not stroke */
+
     .quick-btn.btn-help svg {
-      fill: currentColor; stroke: none;
+      fill: currentColor;
+      stroke: none;
     }
+
     .quick-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateX(4px);
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding-top: 24px;
+      font-size: 11px;
+      opacity: 0.5;
+      text-align: center;
+    }
+
+    .main-chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--cream);
+    }
+
+    .chat-header {
+      padding: 20px 24px;
+      background: white;
+      border-bottom: 1px solid var(--cream-dark);
+    }
+
+    .chat-header h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--gray-800);
+      margin-bottom: 4px;
+    }
+
+    .chat-header p {
+      font-size: 13px;
+      color: var(--gray-600);
+    }
+
+    .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .messages-container::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .messages-container::-webkit-scrollbar-track {
+      background: var(--cream-dark);
+    }
+
+    .messages-container::-webkit-scrollbar-thumb {
       background: var(--navy);
-      border-color: var(--navy);
-      color: #fff;
+      border-radius: 3px;
     }
-    .quick-btn:hover svg { stroke: #fff; }
-    .quick-btn.btn-help:hover svg { fill: #fff; stroke: none; }
 
-    /* ════════════════════════════════════════════════
-       MESSAGES AREA
-    ════════════════════════════════════════════════ */
-    #messages {
-      flex: 1; overflow-y: auto;
-      padding: 24px 22px;
-      display: flex; flex-direction: column; gap: 20px;
-      scroll-behavior: smooth;
-      background: var(--bg);
+    .message {
+      display: flex;
+      gap: 12px;
+      animation: fadeIn 0.3s ease-out;
     }
-    #messages::-webkit-scrollbar { width: 4px; }
-    #messages::-webkit-scrollbar-track { background: transparent; }
-    #messages::-webkit-scrollbar-thumb { background: var(--cream-dim); border-radius: 4px; }
 
-    /* ── Message row ──────────────────────────────── */
-    .msg-row {
-      display: flex; gap: 10px;
-      animation: slideUp .22s ease-out;
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .msg-row.user { flex-direction: row-reverse; }
 
-    /* ── Avatars ──────────────────────────────────── */
-    .avatar {
-      width: 36px; height: 36px;
+    .message.user {
+      flex-direction: row-reverse;
+    }
+
+    .message-avatar {
+      width: 36px;
+      height: 36px;
       border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
-    .avatar.bot {
+
+    .message.bot .message-avatar {
       background: linear-gradient(145deg, var(--navy-deep), var(--navy));
       box-shadow: 0 2px 8px rgba(0,48,73,.28);
     }
-    .avatar.user {
+
+    .message.user .message-avatar {
       background: linear-gradient(145deg, var(--red-dark), var(--red));
       box-shadow: 0 2px 8px rgba(214,40,40,.28);
     }
-    .avatar svg { width: 18px; height: 18px; fill: #fff; }
 
-    /* ── Bubbles ──────────────────────────────────── */
-    .bubble {
-      max-width: 68%;
-      min-width: 90px;
+    .message-avatar svg {
+      width: 18px;
+      height: 18px;
+      fill: white;
+    }
+
+    .message-content {
+      max-width: 70%;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .message.bot .message-content {
+      align-items: flex-start;
+    }
+
+    .message.user .message-content {
+      align-items: flex-end;
+    }
+
+    .message-bubble {
       padding: 12px 16px;
-      border-radius: var(--radius);
-      line-height: 1.65; font-size: 14px;
-      box-shadow: var(--shadow-sm);
-      word-break: break-word;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.5;
+      word-wrap: break-word;
     }
-    .msg-row.bot .bubble {
-      background: var(--bubble-bot);
-      border: 1.5px solid var(--border-light);
+
+    .message.bot .message-bubble {
+      background: white;
+      color: var(--gray-800);
+      border: 1.5px solid var(--cream-dark);
       border-top-left-radius: 4px;
-      color: var(--text);
+      box-shadow: var(--shadow-sm);
     }
-    .msg-row.user .bubble {
-      background: var(--bubble-user);
+
+    .message.user .message-bubble {
+      background: var(--red);
+      color: white;
       border-top-right-radius: 4px;
-      color: #fff;
     }
 
-    .bubble-meta {
-      font-size: 10.5px; color: var(--muted);
-      margin-top: 5px; font-family: var(--font-mono);
-      opacity: .7;
+    .message-time {
+      font-size: 11px;
+      color: var(--gray-600);
+      padding: 0 8px;
     }
-    .msg-row.user .bubble-meta { text-align: right; }
 
-    /* ── Intent badges ────────────────────────────── */
     .intent-badge {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 3px 10px; border-radius: 999px;
-      font-size: 10.5px; font-weight: 600;
-      font-family: var(--font-mono);
-      margin-bottom: 9px;
-      letter-spacing: .02em;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 8px;
     }
-    /* Each badge tinted from the palette */
-    .intent-badge.search  { background: #e8f0f5; color: var(--navy);   border: 1px solid #b0ccd9; }
-    .intent-badge.booking { background: #eaf5e8; color: #1a5c18;       border: 1px solid #a8d9a4; }
-    .intent-badge.cancel  { background: #fdecea; color: var(--red);    border: 1px solid #f5b8b4; }
-    .intent-badge.seat    { background: #fff5e0; color: #7a4a00;       border: 1px solid var(--gold); }
-    .intent-badge.ticket  { background: #fff0e0; color: #7a3800;       border: 1px solid var(--orange); }
-    .intent-badge.help    { background: #f0f0f0; color: #444;          border: 1px solid #ccc; }
-    .intent-badge.unknown { background: #fdecea; color: #991b1b;       border: 1px solid #f5b8b4; }
 
-    .bubble-body strong { font-weight: 600; }
+    .intent-badge.search { background: #e3f2fd; color: var(--navy); }
+    .intent-badge.booking { background: #e8f5e9; color: #2e7d32; }
+    .intent-badge.cancel { background: #ffebee; color: var(--red); }
+    .intent-badge.seat { background: #fff3e0; color: var(--orange); }
+    .intent-badge.ticket { background: #f3e5f5; color: #7b1fa2; }
+    .intent-badge.help { background: #e0f2fe; color: #0284c7; }
 
-    /* ── Flight cards ─────────────────────────────── */
     .flight-card {
       background: var(--cream-light);
-      border: 1.5px solid var(--cream-dim);
-      border-left: 3.5px solid var(--gold);
+      border: 1.5px solid var(--cream-dark);
+      border-left: 3px solid var(--gold);
       border-radius: 10px;
-      padding: 12px 14px; margin-top: 9px; font-size: 13px;
+      padding: 12px;
+      margin-top: 8px;
     }
+
     .flight-card .route {
-      font-weight: 700; font-size: 13.5px;
+      font-weight: 600;
       color: var(--navy);
-      display: flex; align-items: center; gap: 6px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
+
     .flight-card .route svg {
-      width: 13px; height: 13px;
-      fill: var(--orange); flex-shrink: 0;
-    }
-    .flight-card .details {
-      color: var(--muted);
-      font-family: var(--font-mono);
-      font-size: 11.5px; margin-top: 5px;
-    }
-    .flight-card .fc-badge {
-      display: inline-block;
-      padding: 2px 9px; border-radius: 999px;
-      font-size: 11px; font-weight: 600;
-      margin-top: 7px;
-    }
-    .fc-green { background: #d1fae5; color: #065f46; }
-    .fc-amber { background: #fef3c7; color: #92400e; }
-    .fc-red   { background: #fee2e2; color: #991b1b; }
-
-    /* ── Typing indicator ─────────────────────────── */
-    .typing {
-      display: flex; gap: 5px;
-      padding: 13px 16px;
-      background: var(--bubble-bot);
-      border: 1.5px solid var(--border-light);
-      border-radius: var(--radius); border-top-left-radius: 4px;
-      width: 64px;
-    }
-    .typing span {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: var(--cream-dim);
-      animation: typebounce .9s ease-in-out infinite;
-    }
-    .typing span:nth-child(2) { animation-delay: .16s; }
-    .typing span:nth-child(3) { animation-delay: .32s; }
-    @keyframes typebounce {
-      0%, 80%, 100% { transform: scale(.65); opacity: .45; }
-      40%           { transform: scale(1.1); opacity: 1; }
-    }
-
-    /* ════════════════════════════════════════════════
-       WELCOME SCREEN
-    ════════════════════════════════════════════════ */
-    .welcome {
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      flex: 1; gap: 14px;
-      padding: 48px 24px; text-align: center;
-    }
-    .welcome-logo {
-      width: 72px; height: 72px;
-      background: linear-gradient(145deg, var(--navy-deep), var(--navy));
-      border-radius: 22px;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: var(--shadow-md), 0 0 0 6px rgba(0,48,73,.07);
-    }
-    .welcome-logo svg { width: 36px; height: 36px; fill: var(--gold); }
-    .welcome h2 {
-      font-size: 20px; font-weight: 700;
-      color: var(--navy); letter-spacing: -.3px;
-    }
-    .welcome-rule {
-      width: 48px; height: 2.5px;
-      background: linear-gradient(90deg, var(--red), var(--gold));
-      border-radius: 2px;
-    }
-    .welcome p {
-      font-size: 13.5px; color: var(--muted);
-      max-width: 360px; line-height: 1.7;
-    }
-    /* 3 feature chips below welcome text */
-    .welcome-chips {
-      display: flex; gap: 8px; flex-wrap: wrap;
-      justify-content: center; margin-top: 4px;
-    }
-    .chip {
-      display: flex; align-items: center; gap: 5px;
-      padding: 5px 12px;
-      border: 1.5px solid var(--border);
-      border-radius: 999px;
-      font-size: 11.5px; font-weight: 500;
-      color: var(--muted);
-      background: var(--surface);
-    }
-    .chip svg {
-      width: 13px; height: 13px;
-      stroke: var(--orange); fill: none;
-      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
-    }
-
-    /* ════════════════════════════════════════════════
-       INPUT AREA
-    ════════════════════════════════════════════════ */
-    .input-area {
-      padding: 13px 20px 15px;
-      background: var(--surface);
-      border-top: 1.5px solid var(--border-light);
+      width: 13px;
+      height: 13px;
+      fill: var(--orange);
       flex-shrink: 0;
     }
-    .input-row { display: flex; gap: 10px; align-items: flex-end; }
 
-    #user-input {
+    .flight-card .details {
+      font-size: 12px;
+      color: var(--gray-600);
+      margin-bottom: 8px;
+    }
+
+    .seat-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .seat-badge.green { background: #d1fae5; color: #065f46; }
+    .seat-badge.amber { background: #fef3c7; color: #92400e; }
+    .seat-badge.red { background: #fee2e2; color: #991b1b; }
+
+    .inline-form {
+      margin-top: 12px;
+      padding: 16px;
+      background: var(--cream-light);
+      border-radius: 12px;
+      border: 1.5px solid var(--cream-dark);
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-700);
+      margin-bottom: 6px;
+    }
+
+    .form-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: white;
+      border: 1.5px solid var(--cream-dark);
+      border-radius: 10px;
+      padding: 10px 12px;
+      transition: all 0.2s;
+    }
+
+    .form-input-wrapper:focus-within {
+      border-color: var(--navy);
+      box-shadow: 0 0 0 3px rgba(0, 48, 73, 0.1);
+    }
+
+    .form-input-wrapper svg {
+      width: 18px;
+      height: 18px;
+      stroke: var(--gray-600);
+      fill: none;
+      stroke-width: 1.8;
+      flex-shrink: 0;
+    }
+
+    .form-input {
       flex: 1;
-      padding: 11px 16px;
-      border: 1.5px solid var(--border);
-      border-radius: 11px;
-      font-family: var(--font-ui);
-      font-size: 14px; color: var(--text);
+      border: none;
+      outline: none;
+      font-size: 13px;
+      font-family: inherit;
+      background: transparent;
+      color: var(--gray-800);
+    }
+
+    .form-input::placeholder {
+      color: #b0a07a;
+    }
+
+    .form-textarea-wrapper {
+      display: flex;
+      gap: 10px;
+      background: white;
+      border: 1.5px solid var(--cream-dark);
+      border-radius: 10px;
+      padding: 10px 12px;
+      transition: all 0.2s;
+    }
+
+    .form-textarea-wrapper:focus-within {
+      border-color: var(--navy);
+      box-shadow: 0 0 0 3px rgba(0, 48, 73, 0.1);
+    }
+
+    .form-textarea-wrapper svg {
+      width: 18px;
+      height: 18px;
+      stroke: var(--gray-600);
+      fill: none;
+      stroke-width: 1.8;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .form-textarea {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 13px;
+      font-family: inherit;
+      background: transparent;
+      resize: vertical;
+      min-height: 70px;
+      color: var(--gray-800);
+    }
+
+    .form-textarea::placeholder {
+      color: #b0a07a;
+    }
+
+    .priority-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .priority-btn {
+      flex: 1;
+      padding: 8px;
+      border: 1.5px solid var(--cream-dark);
+      border-radius: 8px;
+      background: white;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--gray-700);
+    }
+
+    .priority-btn.active {
+      background: var(--navy);
+      border-color: var(--navy);
+      color: white;
+    }
+
+    .form-submit {
+      width: 100%;
+      padding: 10px;
+      background: var(--red);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .form-submit svg {
+      width: 16px;
+      height: 16px;
+      stroke: white;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .form-submit:hover {
+      background: var(--red-dark);
+      transform: translateY(-1px);
+    }
+
+    .typing-indicator {
+      display: flex;
+      gap: 4px;
+      padding: 12px 16px;
+      background: white;
+      border-radius: 14px;
+      border: 1.5px solid var(--cream-dark);
+      border-top-left-radius: 4px;
+      width: fit-content;
+    }
+
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--cream-dark);
+      border-radius: 50%;
+      animation: typing 1.4s infinite;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typing {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-10px); opacity: 1; }
+    }
+
+    .input-area {
+      padding: 20px 24px;
+      background: white;
+      border-top: 1.5px solid var(--cream-dark);
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .input-wrapper textarea {
+      flex: 1;
+      padding: 12px 16px;
+      border: 1.5px solid var(--cream-dark);
+      border-radius: 24px;
+      font-size: 14px;
+      font-family: inherit;
       background: var(--cream-light);
       resize: none;
-      height: 44px; min-height: 44px; max-height: 120px;
+      max-height: 120px;
       line-height: 1.5;
-      outline: none; overflow-y: hidden;
-      transition: border-color .18s, box-shadow .18s, background .18s;
-      display: block;
+      transition: all 0.2s;
     }
-    #user-input:focus {
-      border-color: var(--navy);
-      background: #fff;
-      box-shadow: 0 0 0 3px rgba(0,48,73,.09);
-    }
-    #user-input::placeholder { color: #b0a07a; }
 
-    #send-btn {
-      width: 44px; height: 44px;
-      background: var(--red);
-      border: none; border-radius: 11px;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      box-shadow: 0 2px 10px rgba(214,40,40,.35);
-      transition: background .18s, transform .12s, box-shadow .18s;
+    .input-wrapper textarea:focus {
+      outline: none;
+      border-color: var(--navy);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(0, 48, 73, 0.1);
     }
-    #send-btn:hover  { background: var(--red-dark); box-shadow: 0 4px 16px rgba(214,40,40,.45); }
-    #send-btn:active { transform: scale(.92); }
-    #send-btn svg    { fill: #fff; width: 18px; height: 18px; }
-    #send-btn:disabled {
-      background: var(--border); box-shadow: none; cursor: not-allowed;
+
+    .send-btn {
+      width: 44px;
+      height: 44px;
+      background: var(--red);
+      border: none;
+      border-radius: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      box-shadow: 0 2px 10px rgba(214, 40, 40, 0.35);
+    }
+
+    .send-btn:hover:not(:disabled) {
+      background: var(--red-dark);
+      transform: scale(1.05);
+      box-shadow: 0 4px 16px rgba(214, 40, 40, 0.45);
+    }
+
+    .send-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .send-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: white;
     }
 
     .input-hint {
-      font-size: 11px; color: var(--muted);
-      margin-top: 7px; font-family: var(--font-mono); opacity: .6;
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--gray-600);
+      text-align: center;
     }
 
-    /* ── Toast ────────────────────────────────────── */
-    #toast {
-      position: fixed; bottom: 80px; left: 50%;
-      transform: translateX(-50%) translateY(18px);
-      background: var(--navy-deep); color: #fff;
-      padding: 10px 20px; border-radius: 9px;
-      font-size: 13px; opacity: 0; pointer-events: none;
-      transition: all .25s ease; z-index: 999;
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--navy-deep);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 13px;
+      z-index: 1000;
+      transition: transform 0.3s ease;
+      box-shadow: var(--shadow-lg);
       border-left: 3px solid var(--gold);
     }
-    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-    /* ── Responsive ───────────────────────────────── */
-    @media (max-width: 600px) {
-      .app    { max-width: 100%; box-shadow: none; }
-      .bubble { max-width: 87%; }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .welcome-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .welcome-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(145deg, var(--navy-deep), var(--navy));
+      border-radius: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-md), 0 0 0 6px rgba(0, 48, 73, 0.07);
+    }
+
+    .welcome-icon svg {
+      width: 40px;
+      height: 40px;
+      fill: var(--gold);
+    }
+
+    .welcome-screen h3 {
+      font-size: 24px;
+      color: var(--navy);
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+
+    .welcome-rule {
+      width: 48px;
+      height: 2.5px;
+      background: linear-gradient(90deg, var(--red), var(--gold));
+      border-radius: 2px;
+      margin: 12px auto;
+    }
+
+    .welcome-screen p {
+      color: var(--gray-600);
+      max-width: 400px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .feature-grid {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .feature {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: var(--cream-light);
+      border: 1.5px solid var(--cream-dark);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--gray-700);
+    }
+
+    .feature svg {
+      width: 14px;
+      height: 14px;
+      stroke: var(--orange);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        display: none;
+      }
+      
+      .message-content {
+        max-width: 85%;
+      }
     }
   </style>
 </head>
 <body>
-<div class="app">
-
-  <!-- ════════════ HEADER ════════════ -->
-  <header>
-    <div class="header-logo">
-      <!-- Plane icon, gold fill -->
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/>
-      </svg>
-    </div>
-    <div class="header-text">
-      <h1>AeroDesk Support</h1>
-      <p>Intelligent Airline Assistant</p>
-    </div>
-    <div class="status-pill">
-      <div class="status-dot"></div>
-      Online
-    </div>
-  </header>
-
-  <!-- ════════════ QUICK BAR ════════════ -->
-  <div class="quick-bar">
-
-    <!-- Search flights — magnifying glass -->
-    <button class="quick-btn" onclick="quickAction('Search flights from New York to London')">
-      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      Search Flights
-    </button>
-
-    <!-- My Booking — bookmark -->
-    <button class="quick-btn" onclick="quickAction('Check my booking ABC123')">
-      <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-      My Booking
-    </button>
-
-    <!-- Cancel — x circle -->
-    <button class="quick-btn" onclick="quickAction('Cancel booking DEF456')">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-      Cancel
-    </button>
-
-    <!-- Change Seat — grid/seat icon -->
-    <button class="quick-btn" onclick="quickAction('Change seat to 14B for ABC123')">
-      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      Change Seat
-    </button>
-
-    <!-- Raise Ticket — tag icon -->
-    <button class="quick-btn" onclick="quickAction('I have an issue with my meal for booking ABC123')">
-      <svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-      Raise Ticket
-    </button>
-
-    <!-- Help — question mark circle (filled) -->
-    <button class="quick-btn btn-help" onclick="quickAction('help')">
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
-      </svg>
-      Help
-    </button>
-
-  </div>
-
-  <!-- ════════════ MESSAGES ════════════ -->
-  <div id="messages">
-    <div class="welcome" id="welcome">
-      <div class="welcome-logo">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/>
-        </svg>
+  <div class="app-container">
+    <div class="sidebar">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
+        </div>
+        <div class="logo-text">
+          <h1>AeroDesk</h1>
+          <p>AI Support Assistant</p>
+        </div>
       </div>
-      <h2>Welcome to AeroDesk</h2>
-      <div class="welcome-rule"></div>
-      <p>Search flights, manage your booking, change seats, or raise a support ticket — I've got you covered.</p>
-      <div class="welcome-chips">
-        <span class="chip">
+      
+      <div class="status">
+        <div class="status-dot"></div>
+        <span class="status-text">System Online</span>
+      </div>
+      
+      <div class="quick-actions">
+        <h3>Quick Actions</h3>
+        <button class="quick-btn" onclick="quickAction('search flights')">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          Flight Search
-        </span>
-        <span class="chip">
+          Search Flights
+        </button>
+        <button class="quick-btn" onclick="quickAction('check my booking')">
           <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-          Bookings
-        </span>
-        <span class="chip">
+          My Booking
+        </button>
+        <button class="quick-btn" onclick="quickAction('cancel booking')">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          Cancel
+        </button>
+        <button class="quick-btn" onclick="quickAction('change my seat')">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Change Seat
+        </button>
+        <button class="quick-btn" onclick="quickAction('raise a ticket')">
           <svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-          Support Tickets
-        </span>
+          Raise Ticket
+        </button>
+        <button class="quick-btn btn-help" onclick="quickAction('help')">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+          </svg>
+          Help
+        </button>
+      </div>
+      
+      <div class="sidebar-footer">
+        <p>Version 1.0</p>
+      </div>
+    </div>
+    
+    <div class="main-chat">
+      <div class="chat-header">
+        <h2>Airline Support Assistant</h2>
+        <p>Ask me anything about flights, bookings, and support</p>
+      </div>
+      
+      <div class="messages-container" id="messagesContainer">
+        <div class="welcome-screen" id="welcomeScreen">
+          <div class="welcome-icon">
+            <svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
+          </div>
+          <h3>Welcome to AeroDesk</h3>
+          <div class="welcome-rule"></div>
+          <p>Your intelligent airline support assistant. I can help you search flights, manage bookings, change seats, and raise support tickets.</p>
+          <div class="feature-grid">
+            <div class="feature">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Flight Search
+            </div>
+            <div class="feature">
+              <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              Bookings
+            </div>
+            <div class="feature">
+              <svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+              Support Tickets
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="input-area">
+        <div class="input-wrapper">
+          <textarea id="messageInput" placeholder="Type your message here..." rows="1"></textarea>
+          <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+            <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          </button>
+        </div>
+        <div class="input-hint">Enter to send • Shift + Enter for new line</div>
       </div>
     </div>
   </div>
+  
+  <div class="toast" id="toast"></div>
 
-  <!-- ════════════ INPUT ════════════ -->
-  <div class="input-area">
-    <div class="input-row">
-      <textarea
-        id="user-input"
-        placeholder="Type your message"
-        autocomplete="off"
-      ></textarea>
-      <button id="send-btn" onclick="sendMessage()" title="Send">
-        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-      </button>
-    </div>
-    <div class="input-hint">↵ Enter to send &nbsp;·&nbsp; Shift+↵ for new line</div>
-  </div>
-
-</div><!-- /.app -->
-
-<div id="toast"></div>
-
-<script>
-  /* ── Config ──────────────────────────────────────── */
-  const API_BASE = 'http://localhost:5000/api';
-  let isWaiting  = false;
-
-  /* ── DOM refs ────────────────────────────────────── */
-  const messagesEl = document.getElementById('messages');
-  const inputEl    = document.getElementById('user-input');
-  const sendBtn    = document.getElementById('send-btn');
-  const toastEl    = document.getElementById('toast');
-  let   welcomeEl  = document.getElementById('welcome');
-
-  /* ── Avatar SVG strings ──────────────────────────── */
-  const SVG_PLANE = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/>
-  </svg>`;
-
-  const SVG_PERSON = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
-  </svg>`;
-
-  /* ── Textarea auto-resize ────────────────────────── */
-  inputEl.addEventListener('input', () => {
-    inputEl.style.height = '44px';
-    const newH = Math.min(inputEl.scrollHeight, 120);
-    inputEl.style.height = newH + 'px';
-    inputEl.style.overflowY = newH >= 120 ? 'auto' : 'hidden';
-  });
-  inputEl.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-  });
-
-  /* ── Quick actions ───────────────────────────────── */
-  function quickAction(text) {
-    inputEl.value = text;
-    inputEl.dispatchEvent(new Event('input'));
-    sendMessage();
-  }
-
-  /* ── Toast ───────────────────────────────────────── */
-  function showToast(msg) {
-    toastEl.textContent = msg;
-    toastEl.classList.add('show');
-    setTimeout(() => toastEl.classList.remove('show'), 3200);
-  }
-
-  /* ── Helpers ─────────────────────────────────────── */
-  function nowTime() {
-    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-
-  function intentClass(intent) {
-    return { search_flights:'search', get_booking:'booking', cancel_booking:'cancel',
-             change_seat:'seat', create_ticket:'ticket', help:'help', unknown:'unknown' }[intent] || 'help';
-  }
-
-  function intentLabel(intent) {
-    return { search_flights:'Search', get_booking:'Booking', cancel_booking:'Cancel',
-             change_seat:'Seat', create_ticket:'Ticket', help:'Help', unknown:'Unknown' }[intent] || intent;
-  }
-
-  function renderText(text) {
-    return text
-      .replace(/&/g,  '&amp;')
-      .replace(/</g,  '&lt;')
-      .replace(/>/g,  '&gt;')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\n/g, '<br>');
-  }
-
-  /* ── Flight cards ────────────────────────────────── */
-  function renderFlightCards(data) {
-    if (!data?.flights) return '';
-    return data.flights.map(f => {
-      const avail = parseInt(f.available_seats);
-      let cls = 'fc-green', label = `${avail} seats`;
-      if (avail === 0)     { cls = 'fc-red';   label = 'Full'; }
-      else if (avail < 15) { cls = 'fc-amber'; label = `${avail} left`; }
-
-      // Inline plane icon inside the route line
-      const planeIcon = `<svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>`;
-
-      return `
-        <div class="flight-card">
-          <div class="route">${planeIcon} ${f.flight_number} &nbsp;·&nbsp; ${f.origin} → ${f.destination}</div>
-          <div class="details">Departs ${f.departure_time} &nbsp;|&nbsp; $${parseFloat(f.price).toFixed(2)}</div>
-          <span class="fc-badge ${cls}">${label}</span>
-        </div>`;
-    }).join('');
-  }
-
-  /* ── Append message ──────────────────────────────── */
-  function appendMessage(role, text, intent, data) {
-    if (welcomeEl) { welcomeEl.remove(); welcomeEl = null; }
-
-    const row         = document.createElement('div');
-    row.className     = `msg-row ${role}`;
-    const avatarSVG   = role === 'user' ? SVG_PERSON : SVG_PLANE;
-    const avatarClass = role === 'user' ? 'user' : 'bot';
-
-    let inner = '';
-    if (role === 'bot' && intent) {
-      inner += `<div class="intent-badge ${intentClass(intent)}">${intentLabel(intent)}</div>`;
-    }
-    inner += `<div class="bubble-body">${renderText(text)}</div>`;
-    if (role === 'bot' && data) inner += renderFlightCards(data);
-
-    row.innerHTML = `
-      <div class="avatar ${avatarClass}">${avatarSVG}</div>
-      <div>
-        <div class="bubble">${inner}</div>
-        <div class="bubble-meta">${nowTime()}</div>
-      </div>`;
-
-    messagesEl.appendChild(row);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
-
-  /* ── Typing indicator ────────────────────────────── */
-  function showTyping() {
-    const row = document.createElement('div');
-    row.className = 'msg-row bot'; row.id = 'typing-row';
-    row.innerHTML = `<div class="avatar bot">${SVG_PLANE}</div>
-      <div><div class="typing"><span></span><span></span><span></span></div></div>`;
-    messagesEl.appendChild(row);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
-  function hideTyping() {
-    document.getElementById('typing-row')?.remove();
-  }
-
-  /* ── Send ────────────────────────────────────────── */
-  async function sendMessage() {
-    const text = inputEl.value.trim();
-    if (!text || isWaiting) return;
-
-    inputEl.value = '';
-    inputEl.style.height = '44px';
-    inputEl.style.overflowY = 'hidden';
-
-    appendMessage('user', text);
-    isWaiting = true; sendBtn.disabled = true; showTyping();
-
-    try {
-      const res = await fetch(`${API_BASE}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text })
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || `HTTP ${res.status}`);
+  <script>
+    const API_BASE = 'http://localhost:5000/api';
+    let isWaiting = false;
+    let selectedPriority = 'Medium';
+    
+    const messagesContainer = document.getElementById('messagesContainer');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const toast = document.getElementById('toast');
+    let welcomeScreen = document.getElementById('welcomeScreen');
+    
+    messageInput.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+    
+    messageInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
       }
-      const json = await res.json();
-      hideTyping();
-      appendMessage('bot', json.response, json.intent, json.data);
-
-    } catch (err) {
-      hideTyping();
-      appendMessage('bot',
-        err.message.includes('Failed to fetch')
-          ? '⚠️ Cannot reach the server. Make sure api.py is running on port 5000.'
-          : `❌ Error: ${err.message}`,
-        'unknown', null);
-      showToast('Connection error');
-    } finally {
-      isWaiting = false; sendBtn.disabled = false; inputEl.focus();
+    });
+    
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
     }
-  }
-
-  inputEl.focus();
-</script>
+    
+    function formatTime() {
+      return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    function formatText(text) {
+      return escapeHtml(text)
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+    }
+    
+    function renderFlightCards(data) {
+      if (!data?.flights || data.flights.length === 0) return '';
+      
+      return data.flights.map(flight => {
+        const seats = flight.available_seats;
+        let seatClass = 'green';
+        let seatText = `${seats} seats left`;
+        
+        if (seats === 0) {
+          seatClass = 'red';
+          seatText = 'Fully Booked';
+        } else if (seats < 15) {
+          seatClass = 'amber';
+          seatText = `${seats} seats remaining`;
+        }
+        
+        return `
+          <div class="flight-card">
+            <div class="route">
+              <svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
+              ${escapeHtml(flight.flight_number)} · ${escapeHtml(flight.origin)} → ${escapeHtml(flight.destination)}
+            </div>
+            <div class="details">
+              Departs: ${flight.departure_time} | Price: $${parseFloat(flight.price).toFixed(2)}
+            </div>
+            <span class="seat-badge ${seatClass}">${seatText}</span>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    function renderSearchForm() {
+      return `
+        <div class="inline-form" id="inlineSearchForm">
+          <div class="form-group">
+            <label class="form-label">Departure City</label>
+            <div class="form-input-wrapper">
+              <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <input type="text" class="form-input" id="searchOrigin" placeholder="Enter city or airport">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Arrival City</label>
+            <div class="form-input-wrapper">
+              <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <input type="text" class="form-input" id="searchDestination" placeholder="Enter city or airport">
+            </div>
+          </div>
+          <button class="form-submit" onclick="submitSearchForm()">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Search Flights
+          </button>
+        </div>
+      `;
+    }
+    
+    function renderBookingForm() {
+      return `
+        <div class="inline-form" id="inlineBookingForm">
+          <div class="form-group">
+            <label class="form-label">PNR Number</label>
+            <div class="form-input-wrapper">
+              <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/></svg>
+              <input type="text" class="form-input" id="bookingPnr" placeholder="Enter 6-digit booking reference">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Name (Optional)</label>
+            <div class="form-input-wrapper">
+              <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <input type="text" class="form-input" id="bookingLastName" placeholder="Passenger last name">
+            </div>
+          </div>
+          <button class="form-submit" onclick="submitBookingForm()">
+            <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Retrieve Booking
+          </button>
+        </div>
+      `;
+    }
+    
+    function renderCancelForm() {
+      return `
+        <div class="inline-form" id="inlineCancelForm">
+          <div class="form-group">
+            <label class="form-label">PNR Number</label>
+            <div class="form-input-wrapper">
+              <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/></svg>
+              <input type="text" class="form-input" id="cancelPnr" placeholder="Enter booking reference">
+            </div>
+          </div>
+          <button class="form-submit" onclick="submitCancelForm()">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            Cancel Booking
+          </button>
+        </div>
+      `;
+    }
+    
+    function renderSeatForm() {
+      return `
+        <div class="inline-form" id="inlineSeatForm">
+          <div class="form-group">
+            <label class="form-label">PNR Number</label>
+            <div class="form-input-wrapper">
+              <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/></svg>
+              <input type="text" class="form-input" id="seatPnr" placeholder="Enter booking reference">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">New Seat Number</label>
+            <div class="form-input-wrapper">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+              <input type="text" class="form-input" id="newSeat" placeholder="e.g., 14B, 22A">
+            </div>
+          </div>
+          <button class="form-submit" onclick="submitSeatForm()">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            Change Seat
+          </button>
+        </div>
+      `;
+    }
+    
+    function renderTicketForm() {
+      return `
+        <div class="inline-form" id="inlineTicketForm">
+          <div class="form-group">
+            <label class="form-label">PNR Number</label>
+            <div class="form-input-wrapper">
+              <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/></svg>
+              <input type="text" class="form-input" id="ticketPnr" placeholder="Enter booking reference">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Issue Description</label>
+            <div class="form-textarea-wrapper">
+              <svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+              <textarea class="form-textarea" id="ticketIssue" placeholder="Describe your issue in detail..."></textarea>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Priority</label>
+            <div class="priority-buttons">
+              <button type="button" class="priority-btn" onclick="setPriority('Low')">Low</button>
+              <button type="button" class="priority-btn active" onclick="setPriority('Medium')">Medium</button>
+              <button type="button" class="priority-btn" onclick="setPriority('High')">High</button>
+              <button type="button" class="priority-btn" onclick="setPriority('Urgent')">Urgent</button>
+            </div>
+          </div>
+          <button class="form-submit" onclick="submitTicketForm()">
+            <svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            Submit Ticket
+          </button>
+        </div>
+      `;
+    }
+    
+    function setPriority(priority) {
+      selectedPriority = priority;
+      document.querySelectorAll('.priority-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.textContent === priority) {
+          btn.classList.add('active');
+        }
+      });
+    }
+    
+    function submitSearchForm() {
+      const origin = document.getElementById('searchOrigin')?.value.trim();
+      const destination = document.getElementById('searchDestination')?.value.trim();
+      if (!origin && !destination) {
+        showToast('Please enter at least one city');
+        return;
+      }
+      
+      let query = 'Search flights';
+      if (origin) query += ` from ${origin}`;
+      if (destination) query += ` to ${destination}`;
+      
+      document.getElementById('inlineSearchForm')?.remove();
+      messageInput.value = query;
+      sendMessage();
+    }
+    
+    function submitBookingForm() {
+      const pnr = document.getElementById('bookingPnr')?.value.trim();
+      const lastName = document.getElementById('bookingLastName')?.value.trim();
+      
+      if (!pnr) {
+        showToast('Please enter a PNR number');
+        return;
+      }
+      
+      let query = `Check booking ${pnr}`;
+      if (lastName) query += ` last name ${lastName}`;
+      
+      document.getElementById('inlineBookingForm')?.remove();
+      messageInput.value = query;
+      sendMessage();
+    }
+    
+    function submitCancelForm() {
+      const pnr = document.getElementById('cancelPnr')?.value.trim();
+      if (!pnr) {
+        showToast('Please enter a PNR number');
+        return;
+      }
+      
+      document.getElementById('inlineCancelForm')?.remove();
+      messageInput.value = `Cancel booking ${pnr}`;
+      sendMessage();
+    }
+    
+    function submitSeatForm() {
+      const pnr = document.getElementById('seatPnr')?.value.trim();
+      const seat = document.getElementById('newSeat')?.value.trim();
+      
+      if (!pnr || !seat) {
+        showToast('Please enter both PNR and new seat number');
+        return;
+      }
+      
+      document.getElementById('inlineSeatForm')?.remove();
+      messageInput.value = `Change seat to ${seat} for ${pnr}`;
+      sendMessage();
+    }
+    
+    function submitTicketForm() {
+      const pnr = document.getElementById('ticketPnr')?.value.trim();
+      const issue = document.getElementById('ticketIssue')?.value.trim();
+      
+      if (!pnr || !issue) {
+        showToast('Please enter both PNR and issue description');
+        return;
+      }
+      
+      document.getElementById('inlineTicketForm')?.remove();
+      messageInput.value = `${selectedPriority} priority issue for ${pnr}: ${issue}`;
+      sendMessage();
+    }
+    
+    function isSearchClarification(intent, data) {
+      return intent === 'search_flights' && (!data?.flights || data.flights.length === 0);
+    }
+    
+    function isBookingClarification(intent, data) {
+      return intent === 'get_booking' && !data?.booking;
+    }
+    
+    function isCancelClarification(intent, data) {
+      return intent === 'cancel_booking' && !data?.success;
+    }
+    
+    function isSeatClarification(intent, data) {
+      return intent === 'change_seat' && !data?.success;
+    }
+    
+    function isTicketClarification(intent, data) {
+      return intent === 'create_ticket' && !data?.ticket_id;
+    }
+    
+    function addMessage(role, text, intent = null, data = null) {
+      if (welcomeScreen) {
+        welcomeScreen.remove();
+        welcomeScreen = null;
+      }
+      
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${role}`;
+      
+      const avatarSvg = role === 'user' 
+        ? `<svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>`
+        : `<svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>`;
+      
+      let content = '';
+      
+      if (role === 'bot' && intent) {
+        const intentClass = {
+          search_flights: 'search', get_booking: 'booking', cancel_booking: 'cancel',
+          change_seat: 'seat', create_ticket: 'ticket', help: 'help'
+        }[intent] || 'help';
+        
+        const intentLabel = {
+          search_flights: 'Flight Search', get_booking: 'Booking Details', cancel_booking: 'Cancellation',
+          change_seat: 'Seat Change', create_ticket: 'Support Ticket', help: 'Help', unknown: 'Assistant'
+        }[intent] || intent;
+        
+        content += `<div class="intent-badge ${intentClass}">${intentLabel}</div>`;
+      }
+      
+      let showForm = false;
+      let formHtml = '';
+      
+      if (role === 'bot') {
+        if (isSearchClarification(intent, data)) {
+          showForm = true;
+          formHtml = renderSearchForm();
+        } else if (isBookingClarification(intent, data)) {
+          showForm = true;
+          formHtml = renderBookingForm();
+        } else if (isCancelClarification(intent, data)) {
+          showForm = true;
+          formHtml = renderCancelForm();
+        } else if (isSeatClarification(intent, data)) {
+          showForm = true;
+          formHtml = renderSeatForm();
+        } else if (isTicketClarification(intent, data)) {
+          showForm = true;
+          formHtml = renderTicketForm();
+        }
+      }
+      
+      if (showForm) {
+        content += `<div class="message-bubble">${formatText(text)}${formHtml}</div>`;
+      } else {
+        content += `<div class="message-bubble">${formatText(text)}</div>`;
+        if (role === 'bot' && data) {
+          const flightCards = renderFlightCards(data);
+          if (flightCards) {
+            content += `<div>${flightCards}</div>`;
+          }
+        }
+      }
+      
+      messageDiv.innerHTML = `
+        <div class="message-avatar">${avatarSvg}</div>
+        <div class="message-content">
+          ${content}
+          <div class="message-time">${formatTime()}</div>
+        </div>
+      `;
+      
+      messagesContainer.appendChild(messageDiv);
+      
+      requestAnimationFrame(() => {
+        messagesContainer.scrollTo({
+          top: messagesContainer.scrollHeight,
+          behavior: 'smooth'
+        });
+      });
+      
+      if (showForm) {
+        setTimeout(() => {
+          const firstInput = messagesContainer.querySelector('.form-input');
+          if (firstInput) firstInput.focus();
+        }, 100);
+      }
+    }
+    
+    function showTyping() {
+      const typingDiv = document.createElement('div');
+      typingDiv.className = 'message bot';
+      typingDiv.id = 'typingIndicator';
+      typingDiv.innerHTML = `
+        <div class="message-avatar">
+          <svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5A1.5 1.5 0 0 0 11.5 2 1.5 1.5 0 0 0 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
+        </div>
+        <div class="message-content">
+          <div class="typing-indicator">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
+      `;
+      messagesContainer.appendChild(typingDiv);
+      
+      requestAnimationFrame(() => {
+        messagesContainer.scrollTo({
+          top: messagesContainer.scrollHeight,
+          behavior: 'smooth'
+        });
+      });
+    }
+    
+    function hideTyping() {
+      const typing = document.getElementById('typingIndicator');
+      if (typing) typing.remove();
+    }
+    
+    async function sendMessage() {
+      const text = messageInput.value.trim();
+      if (!text || isWaiting) return;
+      
+      messageInput.value = '';
+      messageInput.style.height = 'auto';
+      
+      addMessage('user', text);
+      isWaiting = true;
+      sendBtn.disabled = true;
+      showTyping();
+      
+      try {
+        const response = await fetch(`${API_BASE}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text }),
+        });
+        
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || `HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        hideTyping();
+        addMessage('bot', data.response, data.intent, data.data);
+        
+      } catch (error) {
+        hideTyping();
+        let errorMessage = '⚠️ Unable to connect to the server. ';
+        if (error.message.includes('Failed to fetch')) {
+          errorMessage += 'Please make sure the backend server is running on port 5000.';
+        } else {
+          errorMessage += error.message;
+        }
+        addMessage('bot', errorMessage, 'unknown', null);
+        showToast('Connection error');
+      } finally {
+        isWaiting = false;
+        sendBtn.disabled = false;
+        messageInput.focus();
+      }
+    }
+    
+    function quickAction(action) {
+      messageInput.value = action;
+      messageInput.dispatchEvent(new Event('input'));
+      sendMessage();
+    }
+    
+    messageInput.focus();
+  </script>
 </body>
 </html>
