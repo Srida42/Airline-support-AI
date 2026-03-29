@@ -1,5 +1,0 @@
-gradio
-mysql-connector-python
-openai
-python-dotenv
-pillow

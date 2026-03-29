@@ -50,6 +50,7 @@ def search_flights(origin: str = None, destination: str = None):
     cursor = None
     try:
         cursor = conn.cursor(dictionary=True)
+        # Build base query — all non-cancelled flights
         query = """
             SELECT 
                 id, flight_number, origin, destination,
@@ -61,12 +62,14 @@ def search_flights(origin: str = None, destination: str = None):
         """
         params = []
 
+        # Use LIKE with % wildcards on both sides for flexible partial matching.
+        # e.g. "New York", "York", or "JFK" all match "New York (JFK)".
         if origin:
-            query += " AND LOWER(origin) LIKE %s"
-            params.append(f"%{origin.lower()}%")
+            query += " AND LOWER(origin) LIKE LOWER(%s)"
+            params.append("%" + origin.strip() + "%")
         if destination:
-            query += " AND LOWER(destination) LIKE %s"
-            params.append(f"%{destination.lower()}%")
+            query += " AND LOWER(destination) LIKE LOWER(%s)"
+            params.append("%" + destination.strip() + "%")
 
         query += " ORDER BY departure_time ASC"
         cursor.execute(query, params)

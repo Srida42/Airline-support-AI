@@ -1,8 +1,7 @@
 from db import get_db_connection
-
-try:
-    conn = get_db_connection()
-    print("SUCCESS! Connected to MySQL.")
+conn = get_db_connection()
+if conn:
+    print("✅ Connected successfully!")
     conn.close()
-except Exception as e:
-    print("ERROR:", e)
+else:
+    print("❌ Connection failed — check your .env credentials and MySQL status")

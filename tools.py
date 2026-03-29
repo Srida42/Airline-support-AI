@@ -1,4 +1,10 @@
-from db import get_booking_details, update_seat, create_ticket
+from db import get_booking_details, update_seat, create_ticket, search_flights
+
+def search_flights_tool(origin: str = None, destination: str = None):
+    """
+    Searches available flights by origin and/or destination using flexible partial matching.
+    """
+    return search_flights(origin=origin, destination=destination)
 
 def get_booking_tool(pnr: str, last_name: str = None):
     """
@@ -20,6 +26,21 @@ def create_ticket_tool(pnr: str, issue: str):
 
 # Define tool schemas for OpenAI
 TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "search_flights",
+            "description": "Search for available flights by origin and/or destination city or airport code. Supports partial matching — e.g. 'New York', 'JFK', or 'London' all work.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "origin": {"type": "string", "description": "Departure city or airport code (e.g. 'New York', 'JFK', 'London')."},
+                    "destination": {"type": "string", "description": "Arrival city or airport code (e.g. 'Paris', 'CDG', 'Dubai')."}
+                },
+                "required": []
+            }
+        }
+    },
     {
         "type": "function",
         "function": {
@@ -69,6 +90,7 @@ TOOLS = [
 
 # Map tool names to actual functions
 TOOL_MAP = {
+    "search_flights": search_flights_tool,
     "get_booking_details": get_booking_tool,
     "change_seat": change_seat_tool,
     "create_support_ticket": create_ticket_tool

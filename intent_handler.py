@@ -77,17 +77,25 @@ def _extract_seat(text: str) -> Optional[str]:
 
 
 def _extract_origin_destination(text: str):
-    between = re.search(r'\bbetween\s+([A-Za-z\s]+?)\s+and\s+([A-Za-z\s]+?)(?:\b|$)', text, re.IGNORECASE)
+    # "between X and Y"
+    between = re.search(r'\bbetween\s+([A-Za-z][A-Za-z ]{1,30}?)\s+and\s+([A-Za-z][A-Za-z ]{1,30}?)(?=\s*$|\s*\?)', text, re.IGNORECASE)
     if between:
         return between.group(1).strip(), between.group(2).strip()
 
-    from_to = re.search(r'\bfrom\s+([A-Za-z\s]+?)\s+to\s+([A-Za-z\s]+?)(?:\b|$|\?)', text, re.IGNORECASE)
+    # "from X to Y"
+    from_to = re.search(r'\bfrom\s+([A-Za-z][A-Za-z ]{1,30}?)\s+to\s+([A-Za-z][A-Za-z ]{1,30}?)(?=\s*$|\s*\?|\s+(?:on|at|for|with)\b)', text, re.IGNORECASE)
     if from_to:
         return from_to.group(1).strip(), from_to.group(2).strip()
 
-    to_only = re.search(r'\bto\s+([A-Za-z\s]{3,30})(?:\b|$)', text, re.IGNORECASE)
+    # "to Y" only
+    to_only = re.search(r'\bto\s+([A-Za-z][A-Za-z ]{2,30}?)(?=\s*$|\s*\?)', text, re.IGNORECASE)
     if to_only:
         return None, to_only.group(1).strip()
+
+    # "from X" only
+    from_only = re.search(r'\bfrom\s+([A-Za-z][A-Za-z ]{2,30}?)(?=\s*$|\s*\?)', text, re.IGNORECASE)
+    if from_only:
+        return from_only.group(1).strip(), None
 
     return None, None
 
