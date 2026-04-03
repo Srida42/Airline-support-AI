@@ -62,13 +62,32 @@ INTENT_PATTERNS = [
 PNR_PATTERN = re.compile(r'\b([A-Z]{2,3}[0-9]{3,4}|[A-Z0-9]{5,7})\b')
 SEAT_PATTERN = re.compile(r'\b([1-9][0-9]?[A-F])\b', re.IGNORECASE)
 
+# Common words that match PNR pattern but are never real PNRs
+_PNR_STOPWORDS = {
+    "CHECK", "BOOKING", "CANCEL", "CHANGE", "SEARCH", "FLIGHT", "FLIGHTS",
+    "TICKET", "ISSUE", "RAISE", "PLEASE", "THANKS", "HELLO", "MY", "YOUR",
+    "SEAT", "LAST", "NAME", "DETAILS", "STATUS", "FIND", "SHOW", "GET",
+    "UPDATE", "MODIFY", "SWITCH", "UPGRADE", "MOVE", "CONFIRM", "HELP",
+    "URGENT", "HIGH", "MEDIUM", "LOW", "PRIORITY", "REPORT", "PROBLEM",
+    "ABOUT", "REGARDING", "REFERENCE", "NUMBER", "INFO", "INFORMATION",
+}
+
 
 def _extract_pnr(text: str) -> Optional[str]:
+    # First try labeled extraction: "pnr ABC123" or "booking ref: XYZ"
     labeled = re.search(r'\b(?:pnr|booking|ref(?:erence)?)\s*[:#]?\s*([A-Z0-9]{5,10})\b', text, re.IGNORECASE)
     if labeled:
-        return labeled.group(1).upper()
+        candidate = labeled.group(1).upper()
+        if candidate not in _PNR_STOPWORDS:
+            return candidate
+
+    # Fall back to pattern match, skipping stopwords
     matches = PNR_PATTERN.findall(text.upper())
-    return matches[0] if matches else None
+    for match in matches:
+        if match not in _PNR_STOPWORDS:
+            return match
+
+    return None
 
 
 def _extract_seat(text: str) -> Optional[str]:
@@ -117,7 +136,8 @@ def _extract_issue(text: str) -> str:
 
 
 def detect_intent(user_input: str) -> Dict[str, Any]:
-    text = user_input.strip()
+    # Normalize: strip whitespace, collapse multiple spaces
+    text = re.sub(r'\s+', ' ', user_input.strip())
     text_lower = text.lower()
 
     detected_intent = "unknown"

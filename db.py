@@ -126,7 +126,7 @@ def get_booking_details(pnr: str, last_name: str = None):
         if not booking:
             return {"error": f"No booking found for PNR '{pnr}'"}
 
-        if last_name and last_name.lower() not in booking['passenger_name'].lower():
+        if last_name and last_name.strip().lower() not in booking['passenger_name'].lower():
             return {"error": "Passenger last name does not match booking records"}
 
         booking['price'] = float(booking['price'])
