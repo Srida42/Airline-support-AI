@@ -658,6 +658,127 @@
       fill: white;
     }
 
+
+    .mic-btn {
+      width: 44px;
+      height: 44px;
+      background: var(--navy);
+      border: none;
+      border-radius: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      box-shadow: 0 2px 10px rgba(0, 48, 73, 0.3);
+    }
+
+    .mic-btn:hover:not(:disabled) {
+      background: var(--navy-deep);
+      transform: scale(1.05);
+      box-shadow: 0 4px 16px rgba(0, 48, 73, 0.4);
+    }
+
+    .mic-btn.listening {
+      background: var(--red);
+      animation: micPulse 1s infinite;
+      box-shadow: 0 0 0 0 rgba(214, 40, 40, 0.5);
+    }
+
+    @keyframes micPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(214, 40, 40, 0.5); }
+      70%  { box-shadow: 0 0 0 10px rgba(214, 40, 40, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(214, 40, 40, 0); }
+    }
+
+    .mic-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: white;
+      stroke: none;
+      overflow: visible;
+    }
+
+    .mic-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+
+    .upload-btn {
+      width: 44px;
+      height: 44px;
+      background: var(--cream-dark);
+      border: 1.5px solid var(--cream-dark);
+      border-radius: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .upload-btn:hover {
+      background: var(--gold);
+      border-color: var(--gold);
+      transform: scale(1.05);
+    }
+
+    .upload-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: var(--gray-700);
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .upload-btn:hover svg {
+      stroke: var(--navy);
+    }
+
+    .image-preview {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--cream-light);
+      border: 1.5px solid var(--gold);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: var(--gray-700);
+      font-weight: 500;
+    }
+
+    .image-preview img {
+      width: 36px;
+      height: 36px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--cream-dark);
+    }
+
+    .image-preview .remove-img {
+      margin-left: auto;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--red);
+      font-size: 16px;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+
+    .image-preview .remove-img:hover {
+      background: #fee2e2;
+    }
+
     .input-hint {
       margin-top: 8px;
       font-size: 11px;
@@ -859,13 +980,30 @@
       </div>
       
       <div class="input-area">
+        <input type="file" id="imageFileInput" accept="image/*" style="display:none">
+        <div id="imagePreview" style="display:none" class="image-preview">
+          <img id="previewImg" src="" alt="preview">
+          <span id="previewName">image.jpg</span>
+          <button class="remove-img" onclick="removeImage()" title="Remove image">✕</button>
+        </div>
         <div class="input-wrapper">
           <textarea id="messageInput" placeholder="Type your message here..." rows="1"></textarea>
+          <button class="upload-btn" id="uploadBtn" title="Upload boarding pass or image" onclick="document.getElementById('imageFileInput').click()">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </button>
+          <button class="mic-btn" id="micBtn" title="Click to speak">
+            <svg viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+              <rect x="9" y="2" width="6" height="11" rx="3" fill="white"/>
+              <path d="M5 11a7 7 0 0 0 14 0" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <line x1="12" y1="18" x2="12" y2="22" stroke="white" stroke-width="2" stroke-linecap="round"/>
+              <line x1="8" y1="22" x2="16" y2="22" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
           <button class="send-btn" id="sendBtn" onclick="sendMessage()">
             <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
           </button>
         </div>
-        <div class="input-hint">Enter to send • Shift + Enter for new line</div>
+        <div class="input-hint">Enter to send • Shift + Enter for new line • 🎤 Mic • 🖼️ Upload image</div>
       </div>
     </div>
   </div>
@@ -876,6 +1014,17 @@
     const API_BASE = 'http://localhost:5000/api';
     let isWaiting = false;
     let selectedPriority = 'Medium';
+    let selectedImageB64 = null;
+    let selectedImageType = null;
+
+    function removeImage() {
+      selectedImageB64  = null;
+      selectedImageType = null;
+      document.getElementById('imagePreview').style.display = 'none';
+      document.getElementById('previewImg').src = '';
+      document.getElementById('previewName').textContent = '';
+      document.getElementById('imageFileInput').value = '';
+    }
     
     const messagesContainer = document.getElementById('messagesContainer');
     const messageInput = document.getElementById('messageInput');
@@ -1311,10 +1460,16 @@
       showTyping();
       
       try {
+        const payload = { message: text };
+        if (selectedImageB64) {
+          payload.image_b64  = selectedImageB64;
+          payload.image_type = selectedImageType;
+          removeImage();  // Clear preview after sending
+        }
         const response = await fetch(`${API_BASE}/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text }),
+          body: JSON.stringify(payload),
         });
         
         if (!response.ok) {
@@ -1339,7 +1494,127 @@
       } finally {
         isWaiting = false;
         sendBtn.disabled = false;
+    
+
+    // ── Image upload ──────────────────────────────────────────────────────────
+    const imageFileInput = document.getElementById('imageFileInput');
+    const imagePreview   = document.getElementById('imagePreview');
+    const previewImg     = document.getElementById('previewImg');
+    const previewName    = document.getElementById('previewName');
+    imageFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        showToast('Please select an image file');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('Image must be under 5MB');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target.result;
+        // Strip the data:image/...;base64, prefix — keep only raw base64
+        selectedImageB64  = dataUrl.split(',')[1];
+        selectedImageType = file.type;
+
+        // Show preview
+        previewImg.src   = dataUrl;
+        previewName.textContent = file.name;
+        imagePreview.style.display = 'flex';
+
+        // Set helpful placeholder
+        if (!messageInput.value.trim()) {
+          messageInput.value = 'Please read my boarding pass and show my booking details';
+          messageInput.style.height = 'auto';
+          messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+        }
         messageInput.focus();
+      };
+      reader.readAsDataURL(file);
+      // Reset so same file can be re-selected
+      imageFileInput.value = '';
+    });
+
+
+    // ── Voice input (Web Speech API) ─────────────────────────────────────────
+    const micBtn = document.getElementById('micBtn');
+    let recognition = null;
+    let isListening = false;
+
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        isListening = true;
+        micBtn.classList.add('listening');
+        micBtn.title = 'Listening... click to stop';
+        showToast('🎤 Listening...');
+      };
+
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+        // Show interim results in the input box as user speaks
+        messageInput.value = finalTranscript || interimTranscript;
+        messageInput.style.height = 'auto';
+        messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        micBtn.classList.remove('listening');
+        micBtn.title = 'Click to speak';
+        // Auto-send if we got something
+        if (messageInput.value.trim()) {
+          setTimeout(() => sendMessage(), 300);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        isListening = false;
+        micBtn.classList.remove('listening');
+        micBtn.title = 'Click to speak';
+        if (event.error === 'not-allowed') {
+          showToast('⚠️ Microphone access denied. Please allow mic access in your browser.');
+        } else if (event.error === 'no-speech') {
+          showToast('No speech detected. Try again.');
+        } else {
+          showToast('Voice error: ' + event.error);
+        }
+      };
+
+      micBtn.addEventListener('click', () => {
+        if (isListening) {
+          recognition.stop();
+        } else {
+          messageInput.value = '';
+          recognition.start();
+        }
+      });
+
+    } else {
+      // Browser doesn't support speech recognition
+      micBtn.disabled = true;
+      micBtn.title = 'Voice input not supported in this browser. Use Chrome or Edge.';
+    }
+
+    messageInput.focus();
       }
     }
     

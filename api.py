@@ -6,7 +6,8 @@ All quick actions + Gemini conversational fallback.
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 
 from db import (
@@ -28,33 +29,48 @@ CORS(app)
 
 # ── Gemini client (conversational fallback) ───────────────────────────────────
 _gemini_key = os.getenv("GEMINI_API_KEY", "")
-if _gemini_key:
-    genai.configure(api_key=_gemini_key)
-    ai_client = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
-        system_instruction=(
-            "You are AeroDesk, a friendly and professional airline support assistant. "
-            "You help passengers with flight searches, bookings, cancellations, seat changes, and support tickets. "
-            "Keep replies concise, warm, and helpful. If asked something outside airline support, politely redirect. "
-            "Never make up flight data or booking details — only reference information the user has given you."
-        )
-    )
-else:
-    ai_client = None
+ai_client = genai.Client(api_key=_gemini_key) if _gemini_key else None
 
 
-def _ai_fallback(user_message: str) -> str:
-    """Call Gemini for general conversational responses."""
+def _ai_fallback(user_message: str, image_b64: str = None, image_type: str = "image/jpeg") -> str:
+    """Call Gemini for general conversation, optionally with an image."""
     if not ai_client:
         return (
             "I can help you with flight searches, booking lookups, cancellations, "
             "seat changes, and support tickets. Type **help** to see all options."
         )
     try:
-        resp = ai_client.generate_content(user_message)
+        if image_b64:
+            import base64
+            image_bytes = base64.b64decode(image_b64)
+            contents = [
+                types.Part.from_bytes(data=image_bytes, mime_type=image_type),
+                types.Part.from_text(text=(
+                    user_message or
+                    "This appears to be a boarding pass or travel document. "
+                    "Please extract: PNR/booking reference, passenger name, flight number, "
+                    "origin, destination, date, and seat number if visible. "
+                    "Format clearly so I can look up the booking."
+                ))
+            ]
+        else:
+            contents = user_message
+
+        resp = ai_client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=(
+                    "You are AeroDesk, a friendly airline support assistant. "
+                    "When given a boarding pass image, extract all travel details clearly. "
+                    "Keep replies concise and helpful. Never make up flight or booking data."
+                ),
+                max_output_tokens=500,
+            )
+        )
         return resp.text.strip()
     except Exception as e:
-        return f"I'm having trouble connecting to the AI right now. Type **help** to see what I can do. ({e})"
+        return f"AI unavailable right now. Type **help** to see what I can do. ({e})"
 
 
 # ── Health check ──────────────────────────────────────────────────────────────
@@ -160,6 +176,15 @@ def api_chat():
         return jsonify({"error": "message is required"}), 400
 
     user_message = data["message"].strip()
+    image_b64  = data.get("image_b64")
+    image_type = data.get("image_type", "image/jpeg")
+
+    # If image attached, always route to Gemini for extraction
+    if image_b64:
+        ai_response = _ai_fallback(user_message, image_b64=image_b64, image_type=image_type)
+        log_action("image_upload", "boarding pass or image submitted")
+        return jsonify({"intent": "get_booking", "response": ai_response, "data": None})
+
     intent_result = detect_intent(user_message)
     intent = intent_result["intent"]
     entities = intent_result["entities"]
@@ -187,6 +212,8 @@ def api_chat():
             "response": _ai_fallback(user_message),
             "data": None
         })
+
+
 
     # ── Search flights ────────────────────────────────────────────────────────
     if intent == "search_flights":
@@ -351,4 +378,3 @@ if __name__ == "__main__":
     print(f"   Database : {db_status}")
     print(f"   Gemini   : {'✅' if ai_client else '❌ (no key)'}")
     app.run(host="0.0.0.0", port=port, debug=debug)
-    
