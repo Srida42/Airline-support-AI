@@ -22,7 +22,8 @@ from db import (
 )
 from intent_handler import detect_intent, missing_entity_prompt
 
-load_dotenv()
+from pathlib import Path
+load_dotenv(dotenv_path=Path(__file__).parent / '.env')
 
 app = Flask(__name__)
 CORS(app)
@@ -35,10 +36,8 @@ ai_client = genai.Client(api_key=_gemini_key) if _gemini_key else None
 def _ai_fallback(user_message: str, image_b64: str = None, image_type: str = "image/jpeg") -> str:
     """Call Gemini for general conversation, optionally with an image."""
     if not ai_client:
-        return (
-            "I can help you with flight searches, booking lookups, cancellations, "
-            "seat changes, and support tickets. Type **help** to see all options."
-        )
+        return _get_offline_response(user_message, image_b64)
+    
     try:
         if image_b64:
             import base64
@@ -47,31 +46,68 @@ def _ai_fallback(user_message: str, image_b64: str = None, image_type: str = "im
                 types.Part.from_bytes(data=image_bytes, mime_type=image_type),
                 types.Part.from_text(text=(
                     user_message or
-                    "This appears to be a boarding pass or travel document. "
-                    "Please extract: PNR/booking reference, passenger name, flight number, "
-                    "origin, destination, date, and seat number if visible. "
-                    "Format clearly so I can look up the booking."
+                    "This appears to be a boarding pass. Please extract: "
+                    "PNR/booking reference, passenger name, flight number. "
+                    "If you can't read it clearly, just say 'Please provide your PNR number'."
                 ))
             ]
         else:
             contents = user_message
 
         resp = ai_client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-2.0-flash",
             contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=(
                     "You are AeroDesk, a friendly airline support assistant. "
-                    "When given a boarding pass image, extract all travel details clearly. "
-                    "Keep replies concise and helpful. Never make up flight or booking data."
+                    "Keep replies concise and helpful."
                 ),
                 max_output_tokens=500,
             )
         )
         return resp.text.strip()
+        
     except Exception as e:
-        return f"AI unavailable right now. Type **help** to see what I can do. ({e})"
+        error_msg = str(e)
+        # Handle quota exceeded gracefully
+        if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+            print("⚠️ Gemini quota exceeded, using offline responses")
+            return _get_offline_response(user_message, image_b64)
+        else:
+            return f"⚠️ Service temporarily unavailable. Please try again in a moment. ({str(e)[:50]})"
 
+def _get_offline_response(user_message: str, image_b64: str = None) -> str:
+    """Fallback responses when Gemini API is unavailable"""
+    if image_b64:
+        return (
+            "📸 **I see you uploaded an image!**\n\n"
+            "To look up your booking, please provide your **PNR number** "
+            "(6-character booking reference) and **last name**.\n\n"
+        )
+    
+    # Check for common queries
+    msg_lower = user_message.lower()
+    if "flight" in msg_lower and ("search" in msg_lower or "find" in msg_lower):
+        return "🔍 **Search flights**\n\nPlease tell me your departure and destination cities.\n\n*"
+    elif "booking" in msg_lower or "pnr" in msg_lower:
+        return "📋 **Check booking**\n\nPlease provide your PNR number and last name.\n\n*"
+    elif "cancel" in msg_lower:
+        return "❌ **Cancel booking**\n\nPlease provide your PNR number to cancel.\n\n"
+    elif "seat" in msg_lower:
+        return "💺 **Change seat**\n\nPlease provide your PNR number and desired seat number.\n\n"
+    elif "ticket" in msg_lower or "issue" in msg_lower or "problem" in msg_lower:
+        return "🎫 **Create support ticket**\n\nPlease provide your PNR number and describe the issue.\n\n"
+    else:
+        return (
+            "✈️ **Welcome to AeroDesk!**\n\n"
+            "Here's what I can help you with:\n\n"
+            "• **Search flights** - Find flights between cities\n"
+            "• **Check booking** - View your booking details  \n"
+            "• **Cancel booking** - Cancel a reservation\n"
+            "• **Change seat** - Update your seat assignment\n"
+            "• **Raise a ticket** - Report an issue\n\n"
+            "What would you like to do?"
+        )
 
 # ── Health check ──────────────────────────────────────────────────────────────
 @app.route("/api/health", methods=["GET"])
@@ -242,7 +278,7 @@ def api_chat():
             )
             lines.append(
                 f"**{f['flight_number']}** | {f['origin']} → {f['destination']}\n"
-                f"   Departs: {f['departure_time']} | Price: ${float(f['price']):.2f} | {avail_label}"
+                f"   Departs: {f['departure_time']} | Price: ₹{float(f['price']):.2f} | {avail_label}"
             )
         return jsonify({"intent": intent, "response": "\n\n".join(lines), "data": result})
 
@@ -274,7 +310,7 @@ def api_chat():
             f"🛬 Arrival: {b['arrival_time']}\n"
             f"💺 Seat: {b['seat_number'] or 'Not assigned'}\n"
             f"{status_emoji} Status: {b['booking_status']}\n"
-            f"💰 Price: ${float(b['price']):.2f}\n"
+            f"💰 Price: ₹{float(b['price']):.2f}\n"
             f"🗓️ Booked on: {b['booked_on']}"
         )
         return jsonify({"intent": intent, "response": response_text, "data": result})

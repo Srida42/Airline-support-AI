@@ -1,206 +1,214 @@
 """
-intent_handler.py - Rule-based intent detection for Sprint 1
+intent_handler.py — Lightweight intent detection for AeroDesk.
+No external NLP library needed; pure regex + keyword matching.
+
+Supported intents:
+  search_flights  → entities: origin, destination
+  get_booking     → entities: pnr, last_name
+  cancel_booking  → entities: pnr
+  change_seat     → entities: pnr, new_seat
+  create_ticket   → entities: pnr, issue, priority
+  help
+  unknown
 """
 
 import re
-from typing import Dict, Any, Optional
 
-INTENT_PATTERNS = [
-    {
-        "intent": "search_flights",
-        "triggers": [
-            r"\b(search|find|show|list|available|look\s*up)\b.*(flight|fly|ticket)",
-            r"\bflight(s)?\b.*(from|to|between)",
-            r"\b(from|between)\b.*\bto\b",
-            r"\bwhat flights?\b",
-        ]
-    },
-    {
-        "intent": "cancel_booking",
-        "triggers": [
-            r"\b(cancel|cancellation|void|refund|annul)\b",
-        ]
-    },
-    {
-        "intent": "change_seat",
-        "triggers": [
-            r"\b(change|switch|update|move|upgrade|modify)\b.*(seat|row)",
-            r"\bseat\b.*(change|update|switch|move)",
-            r"\bnew seat\b",
-        ]
-    },
-    {
-        "intent": "create_ticket",
-        "triggers": [
-            r"\b(create|open|raise|file|submit|log)\b.*(ticket|issue|complaint|problem|report)",
-            r"\bsupport\b.*(ticket|request)",
-            r"\b(issue|complaint|problem|trouble)\b",
-            r"\bnot working\b",
-        ]
-    },
-    {
-        "intent": "get_booking",
-        "triggers": [
-            r"\b(check|get|show|retrieve|view|lookup|status|details?|info)\b.*(booking|reservation|pnr)",
-            r"\bmy booking\b",
-            r"\bpnr\b",
-            r"\bbooking\s+(number|id|ref|status)\b",
-        ]
-    },
-    {
-        "intent": "help",
-        "triggers": [
-            r"\bhelp\b",
-            r"\bwhat can you do\b",
-            r"\bcommands?\b",
-            r"\bhow (do|can|to)\b",
-            r"^\s*(hi|hello|hey|howdy|greetings)\s*[.!?]?\s*$",
-        ]
-    },
-]
+_PNR_RE  = re.compile(r'\b([A-Z0-9]{6})\b', re.IGNORECASE)
+_SEAT_RE = re.compile(r'\b(\d{1,2}[A-HJ-Z])\b', re.IGNORECASE)
 
-PNR_PATTERN = re.compile(r'\b([A-Z]{2,3}[0-9]{3,4}|[A-Z0-9]{5,7})\b')
-SEAT_PATTERN = re.compile(r'\b([1-9][0-9]?[A-F])\b', re.IGNORECASE)
+_PRIORITY_MAP = {
+    "urgent": "Urgent",
+    "high":   "High",
+    "medium": "Medium",
+    "low":    "Low",
+}
 
-# Common words that match PNR pattern but are never real PNRs
-_PNR_STOPWORDS = {
-    "CHECK", "BOOKING", "CANCEL", "CHANGE", "SEARCH", "FLIGHT", "FLIGHTS",
-    "TICKET", "ISSUE", "RAISE", "PLEASE", "THANKS", "HELLO", "MY", "YOUR",
-    "SEAT", "LAST", "NAME", "DETAILS", "STATUS", "FIND", "SHOW", "GET",
-    "UPDATE", "MODIFY", "SWITCH", "UPGRADE", "MOVE", "CONFIRM", "HELP",
-    "URGENT", "HIGH", "MEDIUM", "LOW", "PRIORITY", "REPORT", "PROBLEM",
-    "ABOUT", "REGARDING", "REFERENCE", "NUMBER", "INFO", "INFORMATION",
+_CITY_ALIASES = {
+    "mumbai": "Mumbai", "bom": "Mumbai", "bombay": "Mumbai",
+    "delhi": "Delhi", "del": "Delhi", "new delhi": "Delhi",
+    "bangalore": "Bangalore", "bengaluru": "Bangalore", "blr": "Bangalore",
+    "chennai": "Chennai", "maa": "Chennai", "madras": "Chennai",
+    "hyderabad": "Hyderabad", "hyd": "Hyderabad",
+    "kolkata": "Kolkata", "ccu": "Kolkata", "calcutta": "Kolkata",
+    "goa": "Goa", "goi": "Goa",
+    "kochi": "Kochi", "cok": "Kochi", "cochin": "Kochi",
+    "pune": "Pune", "pnq": "Pune",
+    "ahmedabad": "Ahmedabad", "amd": "Ahmedabad",
+    "london": "London", "lhr": "London",
+    "dubai": "Dubai", "dxb": "Dubai",
+    "singapore": "Singapore", "sin": "Singapore",
+    "san francisco": "San Francisco", "sfo": "San Francisco",
+    "bangkok": "Bangkok", "bkk": "Bangkok",
+    "new york": "New York", "jfk": "New York", "nyc": "New York",
+    "paris": "Paris", "cdg": "Paris",
+    "chicago": "Chicago", "ord": "Chicago",
+    "los angeles": "Los Angeles", "lax": "Los Angeles",
+    "miami": "Miami", "mia": "Miami",
 }
 
 
-def _extract_pnr(text: str) -> Optional[str]:
-    # First try labeled extraction: "pnr ABC123" or "booking ref: XYZ"
-    labeled = re.search(r'\b(?:pnr|booking|ref(?:erence)?)\s*[:#]?\s*([A-Z0-9]{5,10})\b', text, re.IGNORECASE)
-    if labeled:
-        candidate = labeled.group(1).upper()
-        if candidate not in _PNR_STOPWORDS:
-            return candidate
-
-    # Fall back to pattern match, skipping stopwords
-    matches = PNR_PATTERN.findall(text.upper())
-    for match in matches:
-        if match not in _PNR_STOPWORDS:
-            return match
-
+def _extract_pnr(text: str) -> str | None:
+    stopwords = {"flight", "ticket", "please", "booking", "cancel", "search",
+                 "change", "update", "raise", "create", "medium", "urgent"}
+    for m in _PNR_RE.finditer(text):
+        token = m.group(1).upper()
+        if token.lower() not in stopwords:
+            return token
     return None
 
 
-def _extract_seat(text: str) -> Optional[str]:
-    match = SEAT_PATTERN.search(text)
-    return match.group(1).upper() if match else None
+def _extract_seat(text: str) -> str | None:
+    m = _SEAT_RE.search(text)
+    return m.group(1).upper() if m else None
+
+
+def _extract_priority(text: str) -> str:
+    text_lower = text.lower()
+    for kw, label in _PRIORITY_MAP.items():
+        if kw in text_lower:
+            return label
+    return "Medium"
+
+
+def _find_city_in_text(text: str) -> str | None:
+    for alias in sorted(_CITY_ALIASES, key=len, reverse=True):
+        if alias in text.lower():
+            return _CITY_ALIASES[alias]
+    return None
 
 
 def _extract_origin_destination(text: str):
-    # "between X and Y"
-    between = re.search(r'\bbetween\s+([A-Za-z][A-Za-z ]{1,30}?)\s+and\s+([A-Za-z][A-Za-z ]{1,30}?)(?=\s*$|\s*\?)', text, re.IGNORECASE)
-    if between:
-        return between.group(1).strip(), between.group(2).strip()
-
-    # "from X to Y"
-    from_to = re.search(r'\bfrom\s+([A-Za-z][A-Za-z ]{1,30}?)\s+to\s+([A-Za-z][A-Za-z ]{1,30}?)(?=\s*$|\s*\?|\s+(?:on|at|for|with)\b)', text, re.IGNORECASE)
-    if from_to:
-        return from_to.group(1).strip(), from_to.group(2).strip()
-
-    # "to Y" only
-    to_only = re.search(r'\bto\s+([A-Za-z][A-Za-z ]{2,30}?)(?=\s*$|\s*\?)', text, re.IGNORECASE)
-    if to_only:
-        return None, to_only.group(1).strip()
-
-    # "from X" only
-    from_only = re.search(r'\bfrom\s+([A-Za-z][A-Za-z ]{2,30}?)(?=\s*$|\s*\?)', text, re.IGNORECASE)
-    if from_only:
-        return from_only.group(1).strip(), None
-
-    return None, None
-
-
-def _extract_last_name(text: str) -> Optional[str]:
-    match = re.search(r'\b(?:last\s*name|surname|name)\s+(?:is\s+)?([A-Za-z]+)', text, re.IGNORECASE)
-    return match.group(1) if match else None
-
-
-def _extract_issue(text: str) -> str:
-    prefixes = [
-        r'^(create|open|raise|file|submit|log)\s+(a\s+)?(support\s+)?(ticket|issue|complaint|report)\s*(for|about|regarding)?\s*',
-        r'^i\s+(have|am\s+having|am\s+experiencing|found)\s+an?\s+(issue|problem|complaint)\s*(with|about|regarding)?\s*',
-    ]
-    cleaned = text
-    for p in prefixes:
-        cleaned = re.sub(p, '', cleaned, flags=re.IGNORECASE).strip()
-    return cleaned if len(cleaned) > 5 else text
-
-
-def detect_intent(user_input: str) -> Dict[str, Any]:
-    # Normalize: strip whitespace, collapse multiple spaces
-    text = re.sub(r'\s+', ' ', user_input.strip())
     text_lower = text.lower()
 
-    detected_intent = "unknown"
-    confidence = "low"
+    from_to = re.search(
+        r'from\s+([a-z\s\(\)]+?)\s+to\s+([a-z\s\(\)]+?)(?:\s|$|,|\.|on|at)',
+        text_lower
+    )
+    if from_to:
+        origin = _CITY_ALIASES.get(from_to.group(1).strip()) or _find_city_in_text(from_to.group(1).strip())
+        dest   = _CITY_ALIASES.get(from_to.group(2).strip()) or _find_city_in_text(from_to.group(2).strip())
+        return origin, dest
 
-    for pattern_set in INTENT_PATTERNS:
-        for pattern in pattern_set["triggers"]:
-            if re.search(pattern, text_lower):
-                detected_intent = pattern_set["intent"]
-                confidence = "high"
-                break
-        if confidence == "high":
-            break
+    to_only = re.search(r'to\s+([a-z\s]+?)(?:\s|$|,|\.)', text_lower)
+    if to_only:
+        dest = _CITY_ALIASES.get(to_only.group(1).strip()) or _find_city_in_text(to_only.group(1).strip())
+        return None, dest
 
-    entities: Dict[str, Any] = {}
+    city = _find_city_in_text(text)
+    return None, city
 
-    pnr = _extract_pnr(text)
-    if pnr:
-        entities["pnr"] = pnr
 
-    if detected_intent == "search_flights":
-        origin, destination = _extract_origin_destination(text)
+_SEARCH_KW  = {"search", "find", "show", "list", "flights", "available", "fly", "flying", "route", "routes"}
+_BOOKING_KW = {"booking", "bookings", "reservation", "check", "my booking", "pnr", "show booking",
+               "retrieve", "look up", "details", "what's my", "view my"}
+_CANCEL_KW  = {"cancel", "cancellation", "cancelled", "refund"}
+_SEAT_KW    = {"seat", "seats", "change seat", "update seat", "new seat", "move seat",
+               "switch seat", "reassign", "upgrade seat"}
+_TICKET_KW  = {"ticket", "issue", "problem", "complaint", "support", "raise", "report",
+               "help with", "assistance"}
+_HELP_KW    = {"help", "what can you do", "options", "menu", "commands", "how do i",
+               "what do you do", "hi", "hello", "hey"}
+
+
+def _keyword_score(text_lower: str, kw_set: set) -> int:
+    return sum(1 for kw in kw_set if kw in text_lower)
+
+
+def detect_intent(user_message: str) -> dict:
+    msg   = user_message.strip()
+    lower = msg.lower()
+
+    scores = {
+        "search_flights": _keyword_score(lower, _SEARCH_KW),
+        "get_booking":    _keyword_score(lower, _BOOKING_KW),
+        "cancel_booking": _keyword_score(lower, _CANCEL_KW),
+        "change_seat":    _keyword_score(lower, _SEAT_KW),
+        "create_ticket":  _keyword_score(lower, _TICKET_KW),
+        "help":           _keyword_score(lower, _HELP_KW),
+    }
+
+    if "cancel" in lower:
+        scores["cancel_booking"] += 5
+    if re.search(r'\bseat\b', lower) and any(w in lower for w in ("change", "update", "move", "new")):
+        scores["change_seat"] += 5
+    if re.search(r'\b(ticket|issue|problem|complaint)\b', lower) and "raise" in lower:
+        scores["create_ticket"] += 5
+    if re.search(r'\b(flight|fly|flying)\b', lower) and re.search(r'\b(from|to|between)\b', lower):
+        scores["search_flights"] += 5
+    if re.search(r'\b(my booking|pnr|reservation)\b', lower):
+        scores["get_booking"] += 4
+
+    best_intent = max(scores, key=lambda k: scores[k])
+    best_score  = scores[best_intent]
+
+    if best_score == 0:
+        return {"intent": "unknown", "entities": {}}
+
+    entities: dict = {}
+
+    if best_intent == "search_flights":
+        origin, destination = _extract_origin_destination(msg)
         if origin:
             entities["origin"] = origin
         if destination:
             entities["destination"] = destination
 
-    if detected_intent == "change_seat":
-        seat = _extract_seat(text)
-        if seat:
-            entities["new_seat"] = seat
+    elif best_intent in ("get_booking", "cancel_booking", "change_seat", "create_ticket"):
+        pnr = _extract_pnr(msg)
+        if pnr:
+            entities["pnr"] = pnr
 
-    if detected_intent in ("get_booking", "cancel_booking"):
-        last_name = _extract_last_name(text)
-        if last_name:
-            entities["last_name"] = last_name
+        if best_intent == "get_booking":
+            last_name_match = re.search(
+                r'(?:last\s*name|surname|name)\s+(?:is\s+)?([A-Za-z]+)', msg, re.IGNORECASE
+            )
+            if last_name_match:
+                entities["last_name"] = last_name_match.group(1)
 
-    if detected_intent == "create_ticket":
-        entities["issue"] = _extract_issue(text)
-        if any(w in text_lower for w in ("urgent", "emergency", "asap", "immediately")):
-            entities["priority"] = "Urgent"
-        elif any(w in text_lower for w in ("high", "serious", "important")):
-            entities["priority"] = "High"
-        else:
-            entities["priority"] = "Medium"
+        elif best_intent == "change_seat":
+            seat = _extract_seat(msg)
+            if seat:
+                entities["new_seat"] = seat
 
-    return {
-        "intent": detected_intent,
-        "entities": entities,
-        "confidence": confidence,
-        "raw": text
-    }
+        elif best_intent == "create_ticket":
+            entities["priority"] = _extract_priority(msg)
+            entities["issue"]    = msg
+
+    return {"intent": best_intent, "entities": entities}
 
 
-def missing_entity_prompt(intent: str, missing: str) -> str:
-    """Generate a helpful prompt for a missing required entity - NO EXAMPLE TEXT"""
-    prompts = {
-        ("get_booking", "pnr"): "Please provide your PNR (booking reference number) to look up your booking.",
-        ("cancel_booking", "pnr"): "Please provide your PNR number to cancel your booking.",
-        ("change_seat", "pnr"): "Please provide your PNR number to change your seat.",
-        ("change_seat", "new_seat"): "Please specify the seat number you'd like to move to.",
-        ("create_ticket", "pnr"): "Please provide your PNR number so we can link the ticket to your booking.",
-        ("search_flights", "origin"): "Please specify your departure city.",
-        ("search_flights", "destination"): "Please specify your destination city.",
-    }
-    return prompts.get((intent, missing), f"Could you provide your {missing}?")
+# ── Clarification prompts ─────────────────────────────────────────────────────
+
+_CLARIFICATION_PROMPTS = {
+    ("search_flights", "destination"): (
+        "🔍 **Search Flights**\n\n"
+        "Please tell me where you'd like to fly.\n"
+    ),
+    ("get_booking", "pnr"): (
+        "📋 **Check Booking**\n\n"
+        "Please provide your **PNR number** (6-character booking reference)."
+    ),
+    ("cancel_booking", "pnr"): (
+        "❌ **Cancel Booking**\n\n"
+        "Please provide your **PNR number** to proceed with cancellation."
+    ),
+    ("change_seat", "pnr"): (
+        "💺 **Change Seat**\n\n"
+        "Please provide your **PNR number** and the new seat you'd like."
+    ),
+    ("change_seat", "new_seat"): (
+        "💺 **Change Seat**\n\n"
+        "I have your PNR. Which seat number would you like?"
+    ),
+    ("create_ticket", "pnr"): (
+        "🎫 **Raise Support Ticket**\n\n"
+        "Please provide your **PNR number** and describe the issue."
+    ),
+}
+
+_DEFAULT_CLARIFICATION = "I need a bit more information to help you. Could you please provide more details?"
+
+
+def missing_entity_prompt(intent: str, entity: str) -> str:
+    return _CLARIFICATION_PROMPTS.get((intent, entity), _DEFAULT_CLARIFICATION)

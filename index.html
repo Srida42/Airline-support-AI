@@ -1089,7 +1089,7 @@
               ${escapeHtml(flight.flight_number)} · ${escapeHtml(flight.origin)} → ${escapeHtml(flight.destination)}
             </div>
             <div class="details">
-              Departs: ${flight.departure_time} | Price: $${parseFloat(flight.price).toFixed(2)}
+              Departs: ${flight.departure_time} | Price: ₹${parseFloat(flight.price).toFixed(2)}
             </div>
             <span class="seat-badge ${seatClass}">${seatText}</span>
           </div>
@@ -1449,22 +1449,23 @@
     
     async function sendMessage() {
       const text = messageInput.value.trim();
-      if (!text || isWaiting) return;
+      if ((!text && !selectedImageB64) || isWaiting) return;
       
+      const displayText = text || '📎 Boarding pass uploaded';
       messageInput.value = '';
       messageInput.style.height = 'auto';
       
-      addMessage('user', text);
+      addMessage('user', displayText);
       isWaiting = true;
       sendBtn.disabled = true;
       showTyping();
       
       try {
-        const payload = { message: text };
+        const payload = { message: text || '📎 Please read my boarding pass and show my booking details' };
         if (selectedImageB64) {
           payload.image_b64  = selectedImageB64;
           payload.image_type = selectedImageType;
-          removeImage();  // Clear preview after sending
+          removeImage();
         }
         const response = await fetch(`${API_BASE}/chat`, {
           method: 'POST',
@@ -1494,13 +1495,21 @@
       } finally {
         isWaiting = false;
         sendBtn.disabled = false;
+      }
+    }
     
-
-    // ── Image upload ──────────────────────────────────────────────────────────
+    function quickAction(action) {
+      messageInput.value = action;
+      messageInput.dispatchEvent(new Event('input'));
+      sendMessage();
+    }
+    
+    // Image upload
     const imageFileInput = document.getElementById('imageFileInput');
     const imagePreview   = document.getElementById('imagePreview');
     const previewImg     = document.getElementById('previewImg');
     const previewName    = document.getElementById('previewName');
+    
     imageFileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -1517,16 +1526,13 @@
       const reader = new FileReader();
       reader.onload = (ev) => {
         const dataUrl = ev.target.result;
-        // Strip the data:image/...;base64, prefix — keep only raw base64
         selectedImageB64  = dataUrl.split(',')[1];
         selectedImageType = file.type;
 
-        // Show preview
         previewImg.src   = dataUrl;
         previewName.textContent = file.name;
         imagePreview.style.display = 'flex';
 
-        // Set helpful placeholder
         if (!messageInput.value.trim()) {
           messageInput.value = 'Please read my boarding pass and show my booking details';
           messageInput.style.height = 'auto';
@@ -1535,12 +1541,10 @@
         messageInput.focus();
       };
       reader.readAsDataURL(file);
-      // Reset so same file can be re-selected
       imageFileInput.value = '';
     });
 
-
-    // ── Voice input (Web Speech API) ─────────────────────────────────────────
+    // Voice input
     const micBtn = document.getElementById('micBtn');
     let recognition = null;
     let isListening = false;
@@ -1570,7 +1574,6 @@
             interimTranscript += transcript;
           }
         }
-        // Show interim results in the input box as user speaks
         messageInput.value = finalTranscript || interimTranscript;
         messageInput.style.height = 'auto';
         messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
@@ -1580,7 +1583,6 @@
         isListening = false;
         micBtn.classList.remove('listening');
         micBtn.title = 'Click to speak';
-        // Auto-send if we got something
         if (messageInput.value.trim()) {
           setTimeout(() => sendMessage(), 300);
         }
@@ -1609,21 +1611,10 @@
       });
 
     } else {
-      // Browser doesn't support speech recognition
       micBtn.disabled = true;
       micBtn.title = 'Voice input not supported in this browser. Use Chrome or Edge.';
     }
 
-    messageInput.focus();
-      }
-    }
-    
-    function quickAction(action) {
-      messageInput.value = action;
-      messageInput.dispatchEvent(new Event('input'));
-      sendMessage();
-    }
-    
     messageInput.focus();
   </script>
 </body>
